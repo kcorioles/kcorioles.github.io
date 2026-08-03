@@ -404,7 +404,7 @@ function renderPlayerChartUI(){
   document.getElementById("p-metric-label").textContent=m.l;
   drawChartInto("chart-box",
     [{name:m.l, color:"#e8641d", points:rollingStat(p.log, playerMetric)}],
-    {fmt:m.f, refs:[{v:p.stats[playerMetric], label:`season ${m.f(p.stats[playerMetric])}`}],
+    {fmt:m.f, refs:[{v:p.stats[playerMetric]}],
      bars:singleStat(p.log, playerMetric),
      aria:`Rolling 4-game ${m.l} for ${p.name}, single-game values as columns`});
 }
@@ -456,6 +456,7 @@ function drawChartInto(elId, series, opts){
   }
   refs.forEach(r=>{
     svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
+    if(!r.label) return;
     const fs=px(8.5), wTxt=r.label.length*fs*0.62, hTxt=fs*1.15, yLine=y(r.v);
     const gap=mob?px(3):4;
     const cands=[
