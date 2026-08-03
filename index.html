@@ -297,7 +297,7 @@ function rollingStat(log, key){
 function singleStat(log, key){
   return log.map(e=>{ const t=emptyTot(); addLine(t,e.line); return derive(t)[key]; });
 }
-const METRICS={OPS:{l:"OPS",f:fmt3},OBP:{l:"OBP",f:fmt3},AVG:{l:"AVG",f:fmt3},KPCT:{l:"K%",f:fmtPct},BBPCT:{l:"BB%",f:fmtPct}};
+const METRICS={OPS:{l:"OPS",f:fmt3},OBP:{l:"OBP",f:fmt3},AVG:{l:"AVG",f:fmt3},KPCT:{l:"K%",f:fmtPct},BBPCT:{l:"BB%",f:fmtPct},KBB:{l:"K/BB%",f:fmtPct}};
 let playerMetric="OPS";
 function renderPills(elId, keys, active, onPick){
   const el=document.getElementById(elId);
@@ -400,13 +400,24 @@ function renderGameLog(p){
 /* Hand-rolled SVG line chart */
 function renderPlayerChartUI(){
   const p=players.find(x=>x.name===selected); if(!p) return;
-  renderPills("p-pills", ["OPS","OBP","AVG","KPCT","BBPCT"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
+  renderPills("p-pills", ["OPS","OBP","AVG","KBB"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
+  if(playerMetric==="KBB"){
+    document.getElementById("p-metric-label").textContent="K% / BB%";
+    drawChartInto("chart-box",
+      [{name:"K%",  color:"#c9564a", points:rollingStat(p.log,"KPCT")},
+       {name:"BB%", color:"#2e9fb0", points:rollingStat(p.log,"BBPCT")}],
+      {fmt:fmtPct,
+       bars:[{name:"K%",  vals:singleStat(p.log,"KPCT"),  fill:"#c9564a", opacity:0.16},
+             {name:"BB%", vals:singleStat(p.log,"BBPCT"), fill:"#2e9fb0", opacity:0.16}],
+       aria:`Rolling 4-game K% and BB% for ${p.name}`});
+    return;
+  }
   const m=METRICS[playerMetric];
   document.getElementById("p-metric-label").textContent=m.l;
   drawChartInto("chart-box",
     [{name:m.l, color:"#e8641d", points:rollingStat(p.log, playerMetric)}],
     {fmt:m.f, refs:[{v:p.stats[playerMetric]}],
-     bars:singleStat(p.log, playerMetric),
+     bars:[{name:m.l, vals:singleStat(p.log, playerMetric), fill:"#ffffff", opacity:0.10}],
      aria:`Rolling 4-game ${m.l} for ${p.name}, single-game values as columns`});
 }
 function smoothPath(pts){
@@ -423,6 +434,7 @@ function smoothPath(pts){
 }
 function drawChartInto(elId, series, opts){
   const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, bars=o.bars||null, tipN=o.tipN||(n=>`last ${n}G`);
+  // bars: array of {name, vals, fill, opacity}
   const n=series[0].points.length;
   const el0=document.getElementById(elId);
   const cw=(el0&&el0.clientWidth)?el0.clientWidth:720;
@@ -430,7 +442,7 @@ function drawChartInto(elId, series, opts){
   const px=v=> mob ? +((v*1.3-1)*720/cw).toFixed(1) : v;
   const W=720, H=245, mL=mob?Math.round(px(8)*3.2+10):56, mR=14, mT=14, mB=mob?Math.round(px(7.5)+16):32;
   const iw=W-mL-mR, ih=H-mT-mB;
-  let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v)); if(bars) bars.forEach(v=>vals.push(v));
+  let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v)); if(bars) bars.forEach(set=>set.vals.forEach(v=>vals.push(v)));
   let lo=Math.min(...vals), hi=Math.max(...vals);
   const unit=o.tickUnit||0.05;
   if(o.yMin!==undefined) lo=Math.min(lo,o.yMin);
@@ -449,10 +461,12 @@ function drawChartInto(elId, series, opts){
     svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${px(8)}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
   });
   if(bars){
-    const bw=xstep*0.5;
-    bars.forEach((v,i)=>{
-      const top=y(v), bot=mT+ih;
-      if(bot-top>0.5) svg+=`<rect x="${(x(i)-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="#ffffff" fill-opacity="0.10"><title>${series[0].points[i].label} game: ${fmt(v)}</title></rect>`;
+    const grpW=xstep*0.5, mSets=bars.length, bwOne=grpW/mSets;
+    bars.forEach((set,si)=>{
+      set.vals.forEach((v,i)=>{
+        const top=y(v), bot=mT+ih;
+        if(bot-top>0.5) svg+=`<rect x="${(x(i)-grpW/2+si*bwOne).toFixed(1)}" y="${top.toFixed(1)}" width="${bwOne.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${set.fill}" fill-opacity="${set.opacity}"><title>${series[0].points[i].label} game ${set.name}: ${fmt(v)}</title></rect>`;
+      });
     });
   }
   refs.forEach(r=>{
@@ -477,7 +491,8 @@ function drawChartInto(elId, series, opts){
       if(bars){
         const bw=xstep*0.5;
         for(let i=0;i<n;i++){
-          const bx1=x(i)-bw/2, bx2=x(i)+bw/2, bTop=y(bars[i]), bBot=mT+ih;
+          const tall=Math.max(...bars.map(set=>set.vals[i]));
+          const bx1=x(i)-bw/2, bx2=x(i)+bw/2, bTop=y(tall), bBot=mT+ih;
           if(bx2>=x1 && bx1<=x2 && bBot>=yTop && bTop<=yBot) return false;
         }
       }
@@ -574,9 +589,18 @@ function renderTeamLog(){
 let selGame=null;
 let teamMetric="OPS";
 function renderTeamChart(){
-  renderPills("t-pills", ["OPS","OBP","AVG","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
+  renderPills("t-pills", ["OPS","OBP","AVG","KBB","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
   const lbl=document.getElementById("t-metric-label");
-  if(teamMetric==="DIFF"){
+  if(teamMetric==="KBB"){
+    lbl.textContent="team K% / BB%";
+    drawChartInto("team-chart",
+      [{name:"K%",  color:"#c9564a", points:rollingStat(teamLog,"KPCT")},
+       {name:"BB%", color:"#2e9fb0", points:rollingStat(teamLog,"BBPCT")}],
+      {fmt:fmtPct,
+       bars:[{name:"K%",  vals:singleStat(teamLog,"KPCT"),  fill:"#c9564a", opacity:0.16},
+             {name:"BB%", vals:singleStat(teamLog,"BBPCT"), fill:"#2e9fb0", opacity:0.16}],
+       aria:"Rolling 4-game team K% and BB%", onClick:showGameBox, hl:selGame});
+  } else if(teamMetric==="DIFF"){
     lbl.textContent="cumulative team RS/RA";
     const labs=GAMES.map(g=>g.date);
     drawChartInto("team-chart",
@@ -590,7 +614,7 @@ function renderTeamChart(){
     drawChartInto("team-chart",
       [{name:m.l, color:"#e8641d", points:rollingStat(teamLog, teamMetric)}],
       {fmt:m.f, refs:[{v:team[teamMetric], label:`season ${m.f(team[teamMetric])}`}],
-       bars:singleStat(teamLog, teamMetric),
+       bars:[{name:m.l, vals:singleStat(teamLog, teamMetric), fill:"#ffffff", opacity:0.10}],
        aria:`Rolling 4-game team ${m.l}, single-game values as columns`, onClick:showGameBox, hl:selGame});
   }
 }
