@@ -260,7 +260,8 @@ function derive(t){
   const AVG=t.AB?t.H/t.AB:0, OBP=PA?(t.H+t.BB+t.HBP)/PA:0, SLG=t.AB?TB/t.AB:0;
   const W1B=t.H-t.D2-t.T3-t.HR;
   const WOBA=PA?(0.69*t.BB+0.72*t.HBP+0.89*W1B+1.27*t.D2+1.62*t.T3+2.10*t.HR)/PA:0;
-  return {...t,PA,TB,AVG,OBP,SLG,OPS:OBP+SLG,ISO:SLG-AVG,KPCT:PA?t.SO/PA:0,BBPCT:PA?t.BB/PA:0,WOBA};
+  const RC=(t.AB+t.BB)>0 ? (t.H+t.BB)*TB/(t.AB+t.BB) : 0;
+  return {...t,PA,TB,AVG,OBP,SLG,OPS:OBP+SLG,ISO:SLG-AVG,KPCT:PA?t.SO/PA:0,BBPCT:PA?t.BB/PA:0,WOBA,RC};
 }
 const fmt3 = v => { const s=v.toFixed(3); return s.startsWith("0.")?s.slice(1):s; };
 const fmtPct = v => (v*100).toFixed(1);
@@ -310,7 +311,7 @@ const COLS = [
   {k:"AVG",l:"AVG",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},
   {k:"H",l:"H"},{k:"D2",l:"2B"},{k:"T3",l:"3B"},{k:"HR",l:"HR"},{k:"RBI",l:"RBI"},{k:"R",l:"R"},
   {k:"SB",l:"SB"},{k:"SF",l:"SF"},{k:"SO",l:"K"},{k:"BB",l:"BB"},{k:"HBP",l:"HBP"},
-  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},
+  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},{k:"RC",l:"RC",f:v=>v.toFixed(1)},
 ];
 
 let sortKey="OPS", sortDir=-1, selected=null;
