@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Yellowtail&display=swap" rel="stylesheet">
+<title>King County Orioles — 2026 Stats</title>
+<style>
+  :root {
+    --bg:#101314; --panel:#181d1f; --panel2:#1f2528; --line:#2c3438;
+    --ink:#e8e4da; --dim:#8d968f; --orange:#e8641d; --orange-soft:#f3a06b;
+    --win:#7fb069; --loss:#c9564a; --zero:#565e58;
+    --mono:'Courier New',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Arial Narrow','Helvetica Neue',Arial,sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--disp); }
+  .wrap { max-width:1080px; margin:0 auto; padding:20px 14px 48px; }
+
+  .header { background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--orange); padding:18px 18px 14px; margin-bottom:16px; }
+  .title-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; }
+  .team-name { font-family:'Yellowtail','Brush Script MT',cursive; font-size:40px; font-weight:400; letter-spacing:1px; text-transform:none; line-height:1; }
+  .team-name span { color:var(--orange); }
+  .record { font-family:var(--mono); font-size:20px; font-weight:700; }
+  .sub { font-size:11px; color:var(--dim); letter-spacing:.5px; text-transform:uppercase; }
+  .team-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin-top:14px; background:var(--line); border:1px solid var(--line); width:100%; }
+  @media (min-width:700px){ .team-grid { width:50%; } }
+  .team-cell { background:var(--panel2); padding:5px 6px; text-align:center; }
+  .team-cell .k { font-size:10px; color:var(--dim); letter-spacing:1.2px; text-transform:uppercase; }
+  .team-cell .v { font-family:var(--mono); font-size:16px; font-weight:700; margin-top:1px; }
+
+  .panel { background:var(--panel); border:1px solid var(--line); margin-bottom:16px; }
+  .drill { padding:16px 14px; }
+  .drill-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  .pname { font-size:20px; font-weight:800; text-transform:uppercase; letter-spacing:1px; }
+  .pname small { color:var(--dim); font-size:11px; font-weight:400; text-transform:none; }
+  .pslash { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--orange-soft); margin-top:3px; }
+  .close-btn { background:transparent; border:1px solid var(--line); color:var(--dim); padding:6px 12px; cursor:pointer; font-size:12px; letter-spacing:1px; text-transform:uppercase; font-family:var(--disp); }
+  .close-btn:hover { color:var(--ink); }
+  .section-label { font-size:11px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; margin:16px 0 6px; }
+
+  .tbl-scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-family:var(--mono); font-size:12.5px; white-space:nowrap; }
+  th { font-weight:400; color:var(--dim); padding:8px 9px; text-align:right; border-bottom:1px solid var(--line); }
+  td { padding:7px 9px; text-align:right; }
+  tbody tr { border-top:1px solid var(--line); }
+  th.l, td.l { text-align:left; }
+
+  #board th { cursor:pointer; user-select:none; }
+  #board th.active { color:var(--orange); font-weight:700; }
+  #board tbody tr { cursor:pointer; }
+  #board tbody tr:hover td { background:#1d2225; }
+  #board tbody tr.sel td { background:#26221c; }
+  #board tbody tr.nq-dim td { opacity:.55; }
+  #board td.name, #board th.name { position:sticky; left:0; background:var(--panel); z-index:1; font-family:var(--disp); font-weight:700; text-align:left; }
+  #board tr.sel td.name { color:var(--orange); background:#26221c; }
+  #board tbody tr:hover td.name { background:#1d2225; }
+  #board td.hl { color:var(--orange-soft); }
+  td.z { color:var(--zero); }
+  .dag { color:var(--dim); }
+
+  .board-head { display:flex; justify-content:space-between; align-items:baseline; padding:12px 14px 8px; flex-wrap:wrap; gap:6px; }
+  .board-title { font-size:13px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; }
+  .board-hint { font-size:10.5px; color:var(--dim); }
+
+  .res-w { color:var(--win); } .res-l { color:var(--loss); }
+  .pills { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
+  .pill { background:transparent; border:1px solid var(--line); color:var(--dim); padding:4px 11px; font-family:var(--mono); font-size:11.5px; cursor:pointer; letter-spacing:.5px; white-space:nowrap; }
+  .pill.active { border-color:var(--orange); color:var(--orange); }
+  .gf { position:relative; display:inline-block; }
+  .gf-panel { position:absolute; left:0; top:calc(100% + 4px); z-index:20; background:var(--panel2); border:1px solid var(--line); padding:8px 12px; width:max-content; min-width:0; max-width:calc(100vw - 24px); max-height:320px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  .gf-row { display:block; padding:3px 0; font-size:10.5px; cursor:pointer; white-space:nowrap; font-family:var(--disp); color:var(--ink); }
+  .gf-row input { accent-color:var(--orange); margin-right:7px; vertical-align:middle; width:11.5px; height:11.5px; }
+  .gf-month { font-weight:700; color:var(--orange-soft); margin-top:7px; }
+  .gf-game { padding-left:22px; }
+  .gf-all { border-bottom:1px solid var(--line); padding-bottom:6px; }
+  #teamlog tbody tr:hover td { background:#1d2225; }
+  #teamlog tbody tr.sel td { background:#26221c; }
+  .footnote { font-size:10px; color:#5a625c; margin-top:12px; line-height:1.5; }
+  #chart-box, #team-chart { width:100%; }
+  #chart-box svg, #team-chart svg { display:block; width:100%; height:auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="title-row">
+      <div class="team-name">King County <span>Orioles</span></div>
+      <div class="record" id="record"></div>
+      <div class="sub" id="subline"></div>
+    </div>
+    <div class="team-grid" id="team-grid"></div>
+    <div class="section-label">Rolling 4-game <span id="t-metric-label">team OPS</span> <span style="text-transform:none;letter-spacing:0">· tap a game for the box score</span></div>
+    <div class="pills" id="t-pills"></div>
+    <div id="team-chart"></div>
+    <div id="game-box" style="display:none">
+      <div class="drill-head" style="margin-top:14px">
+        <div class="board-title" id="game-box-title"></div>
+        <button class="close-btn" onclick="showGameBox(null)">Close ✕</button>
+      </div>
+      <div class="tbl-scroll" style="margin-top:8px"><table id="game-box-tbl"></table></div>
+    </div>
+  </div>
+
+  <div class="panel drill" id="drill" style="display:none">
+    <div class="drill-head">
+      <div>
+        <div class="pname" id="drill-name"></div>
+        <div class="pslash" id="drill-slash"></div>
+      </div>
+      <button class="close-btn" onclick="selectPlayer(null)">Close ✕</button>
+    </div>
+    <div class="section-label">Rolling 4-game <span id="p-metric-label">OPS</span></div>
+    <div class="pills" id="p-pills"></div>
+    <div id="chart-box"></div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div class="section-label">Game log</div>
+      <div class="gf" id="gf-drill"></div>
+    </div>
+    <div class="tbl-scroll"><table id="gamelog"></table></div>
+  </div>
+
+  <div class="panel">
+    <div class="board-head">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;flex-wrap:nowrap">
+        <div class="board-title">Batting leaderboard</div>
+        <div class="gf" id="gf-board"></div>
+      </div>
+      <div class="board-hint" id="board-hint"></div>
+    </div>
+    <div class="tbl-scroll"><table id="board"></table></div>
+  </div>
+
+  <div class="panel">
+    <div class="board-head">
+      <div class="board-title">Team game log</div>
+      <div class="board-hint">Tap a game to open its box score</div>
+    </div>
+    <div class="tbl-scroll"><table id="teamlog"></table></div>
+  </div>
+
+  <div class="footnote" id="footnote"></div>
+  <div style="margin-top:10px"><a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener" style="color:var(--orange-soft);font-size:11px;font-family:var(--mono);text-decoration:underline">Scoring Complaint Portal</a></div>
+</div>
+
+<script>
+/* ================================================================
+   DATA — to add a game, append one block to GAMES.
+   Line format: [AB, R, H, RBI, BB, K, 2B, 3B, HR, HBP, SF, SB]
+   Update RECORD / FORFEIT_WINS if the record changes.
+   Everything else recomputes automatically.
+   ================================================================ */
+const RECORD = "9\u20136";
+const FORFEIT_WINS = 1;
+
+const GAMES = [
+  { date:"Apr 12", opp:"Risers", res:"W", score:"9\u20136", lines:{
+    "C Hwang":[5,2,1,0,0,0,0,0,0,0,0,0], "F Pankovcin":[5,0,0,0,0,2,0,0,0,0,0,0],
+    "Z Charles":[4,2,2,1,1,0,0,0,0,0,0,2], "R Cruz":[5,1,2,1,0,1,0,0,0,0,0,0],
+    "C Hoffman":[5,1,4,3,0,1,0,0,0,0,0,1], "A Brousssard":[5,0,2,0,0,1,0,0,0,0,0,0],
+    "J Lim":[4,1,1,1,0,0,0,0,0,0,0,0], "S Paek":[3,1,1,0,0,1,0,0,0,1,0,0],
+    "K Kaupp":[4,0,0,0,0,1,0,0,0,0,0,0], "B Burmester II":[4,1,1,1,0,1,0,0,0,0,0,0] }},
+  { date:"Apr 18", opp:"Bandits", res:"W", score:"18\u20135", lines:{
+    "C Hwang":[3,1,2,2,1,0,1,0,0,0,0,0], "C Hoffman":[5,2,3,3,0,0,1,0,0,0,0,0],
+    "F Pankovcin":[4,1,3,3,1,0,0,0,0,0,0,3], "S Ahn":[3,1,1,1,2,0,0,0,0,0,0,0],
+    "R Cruz":[3,2,0,0,0,0,0,0,0,1,0,0], "Wook":[3,1,2,1,1,0,0,0,0,0,0,0],
+    "A Brousssard":[2,0,1,0,0,0,0,0,0,0,0,0], "J Lim":[4,2,2,0,0,2,0,0,0,0,0,2],
+    "B Siow":[2,2,1,0,0,0,0,0,0,2,0,1], "J Shnider":[1,1,1,1,0,0,0,0,0,1,0,0],
+    "C Won":[2,0,0,0,0,2,0,0,0,0,0,0], "S Paek":[2,2,0,0,2,2,0,0,0,0,0,0],
+    "B Burmester II":[3,2,2,1,1,0,0,0,0,0,0,0], "Z Charles":[3,1,3,5,0,0,1,0,0,0,0,1] }},
+  { date:"May 3", opp:"Phantoms", res:"L", score:"7\u201316", lines:{
+    "K Kaupp":[5,1,1,0,0,1,0,0,0,0,0,0], "C Hwang":[5,2,3,0,0,0,1,0,0,0,0,1],
+    "Z Charles":[4,2,1,0,1,1,0,0,0,0,0,1], "C Hoffman":[3,1,1,2,1,1,1,0,0,0,0,0],
+    "F Pankovcin":[3,1,2,4,1,0,1,0,0,0,0,1], "A Brousssard":[3,0,1,0,1,2,0,0,0,0,0,0],
+    "J Shnider":[4,0,1,0,0,2,0,0,0,0,0,0], "J Lim":[4,0,1,1,0,1,0,0,0,0,0,0],
+    "C Won":[2,0,1,0,1,1,0,0,0,1,0,0], "B Siow":[4,0,0,0,0,1,0,0,0,0,0,0] }},
+  { date:"May 16", opp:"Diamondbacks", res:"L", score:"13\u201314", lines:{
+    "Z Charles":[4,3,3,1,2,0,1,0,0,0,0,3], "C Hwang":[6,1,3,4,0,1,1,0,0,0,0,1],
+    "F Pankovcin":[5,1,1,3,0,0,0,0,0,0,1,0], "B Burmester II":[2,0,0,1,2,0,0,0,0,0,0,0],
+    "R Cruz":[4,1,0,0,0,1,0,0,0,1,0,0], "J Shnider":[5,2,3,1,1,1,1,0,0,0,0,1],
+    "J Lim":[1,1,0,0,4,0,0,0,0,0,0,0], "C Won":[2,0,0,1,2,2,0,0,0,1,0,0],
+    "K Kaupp":[5,1,2,2,0,1,0,0,0,0,0,0], "S Paek":[2,3,0,0,2,1,0,0,0,2,0,0] }},
+  { date:"May 31 (1)", opp:"Islanders", res:"W", score:"22\u20139", ha:"@", lines:{
+    "F Pankovcin":[3,3,2,2,1,1,1,0,0,1,0,0], "K Kaupp":[4,3,2,2,2,0,0,0,0,0,0,0],
+    "S Ahn":[2,3,0,1,3,0,0,0,0,0,0,0], "J Shnider":[4,1,0,0,0,2,0,0,0,1,0,0],
+    "R Cruz":[4,2,2,4,0,1,0,0,0,1,0,0], "A Brousssard":[4,2,2,3,1,0,0,0,0,0,0,0],
+    "J Lim":[4,3,3,4,1,0,1,1,0,0,0,0], "C Won":[4,3,3,3,1,0,1,0,0,1,0,0],
+    "C Hoffman":[3,2,3,3,1,0,1,0,0,0,0,0] }},
+  { date:"May 31 (2)", opp:"Islanders", res:"L", score:"7\u20138", ha:"@", lines:{
+    "Z Charles":[3,0,1,0,2,1,0,0,0,0,0,1], "A Brousssard":[5,0,1,0,0,4,0,0,0,0,0,0],
+    "C Hoffman":[5,1,2,0,0,1,0,0,0,0,0,0], "F Pankovcin":[5,1,2,1,0,1,1,0,0,0,0,1],
+    "S Ahn":[5,0,0,0,0,3,0,0,0,0,0,0], "K Kaupp":[4,3,2,1,1,1,1,0,0,0,0,0],
+    "R Cruz":[4,2,2,2,0,2,0,1,0,0,0,1], "J Shnider":[4,0,2,1,0,0,0,0,0,0,0,0],
+    "A Yoon":[3,0,1,2,0,1,0,0,0,0,1,0] }},
+  { date:"Jun 7", opp:"Islanders", res:"W", score:"18\u201311", lines:{
+    "F Pankovcin":[5,3,3,4,0,0,0,0,0,1,0,1], "S Ahn":[4,1,0,0,2,2,0,0,0,0,0,0],
+    "C Hoffman":[4,2,3,5,0,0,1,0,0,1,1,0], "Z Charles":[5,2,2,0,1,1,0,0,0,0,0,1],
+    "J Shnider":[4,0,1,3,1,0,0,0,0,0,0,0], "A Brousssard":[2,3,0,0,2,2,0,0,0,1,0,0],
+    "J Lim":[3,4,2,1,1,0,2,0,0,1,0,1], "K Kaupp":[4,2,2,1,1,0,0,0,0,0,0,0],
+    "B Siow":[4,1,2,2,1,1,0,0,0,0,0,0] }},
+  { date:"Jun 14 (1)", opp:"Islanders", res:"L", score:"9\u201310", ha:"vs", lines:{
+    "F Pankovcin":[4,2,1,0,1,0,1,0,0,0,0,0], "Z Charles":[4,0,0,0,0,0,0,0,0,1,0,0],
+    "C Hwang":[4,2,2,2,1,0,1,0,0,0,0,0], "J Shnider":[4,1,1,0,1,2,0,0,0,0,0,2],
+    "R Cruz":[5,1,2,2,0,3,0,0,0,0,0,0], "J Lim":[3,1,1,0,2,2,0,0,0,0,0,0],
+    "B Siow":[3,1,1,1,0,0,0,0,0,1,1,0], "K Kaupp":[4,1,3,2,0,0,0,0,0,0,0,2],
+    "A Brousssard":[3,0,0,1,0,2,0,0,0,0,1,0], "C Hoffman":[3,0,0,1,1,2,0,0,0,0,0,1] }},
+  { date:"Jun 14 (2)", opp:"Knights", res:"W", score:"23\u20131", ha:"vs", lines:{
+    "Z Charles":[7,1,4,2,0,1,0,0,0,0,0,0], "S Ahn":[5,2,1,1,1,2,0,0,0,0,0,0],
+    "F Pankovcin":[5,3,3,3,1,1,0,1,0,0,0,0], "K Kaupp":[5,2,3,2,1,2,0,0,0,0,0,0],
+    "B Siow":[4,2,2,2,2,0,0,0,0,0,0,0], "R Cruz":[5,4,2,2,0,2,0,0,0,1,0,2],
+    "C Hoffman":[5,2,2,1,0,0,0,0,0,1,0,1], "J Lim":[6,3,3,2,0,2,0,0,0,0,0,0],
+    "C Hwang":[3,2,3,1,1,0,1,0,0,0,0,1], "A Brousssard":[4,2,2,0,1,0,2,0,0,1,0,0] }},
+  { date:"Jun 20", opp:"Diamondbacks", res:"L", score:"8\u201311", lines:{
+    "F Pankovcin":[5,1,3,3,0,1,1,0,0,0,0,0], "C Hoffman":[4,2,2,1,1,0,1,0,0,0,0,2],
+    "C Hwang":[4,0,1,0,0,0,0,0,0,0,0,1], "J Lim":[3,0,0,0,1,1,0,0,0,0,0,0],
+    "J Shnider":[1,1,0,0,3,0,0,0,0,0,0,2], "S Ahn":[4,0,0,0,0,4,0,0,0,0,0,0],
+    "R Cruz":[4,1,1,0,0,1,0,0,0,0,0,1], "K Kaupp":[4,1,2,0,0,1,1,0,0,0,0,0],
+    "A Brousssard":[3,1,0,0,1,1,0,0,0,0,0,0], "Paul":[4,1,2,1,0,1,1,0,0,0,0,0] }},
+  { date:"Jun 28", opp:"Phantoms", res:"L", score:"8\u20139", lines:{
+    "F Pankovcin":[5,2,1,0,1,1,0,0,0,0,0,2], "K Kaupp":[4,1,1,0,0,0,0,0,0,2,0,0],
+    "C Hoffman":[4,2,1,0,1,0,0,0,0,0,0,0], "Z Charles":[3,1,1,1,2,0,0,0,0,0,0,1],
+    "R Cruz":[5,0,1,1,0,1,0,0,0,0,0,0], "B Siow":[4,2,3,2,0,1,1,0,0,1,0,0],
+    "J Shnider":[5,0,0,0,0,1,0,0,0,0,0,0], "S Ahn":[4,0,2,2,1,1,0,0,0,0,0,1],
+    "A Brousssard":[5,0,1,0,0,1,0,0,0,0,0,0] }},
+  { date:"Jul 11", opp:"Mariners", res:"W", score:"13\u201310", lines:{
+    "C Hwang":[5,4,2,1,0,0,0,0,0,0,0,0], "F Pankovcin":[5,3,3,5,0,0,1,0,1,0,0,0],
+    "C Hoffman":[5,1,3,2,0,0,1,0,0,0,0,0], "K Kaupp":[5,1,1,1,0,0,1,0,0,0,0,0],
+    "S Ahn":[4,0,1,2,0,0,0,0,0,0,1,0], "J Shnider":[4,1,1,0,1,0,0,0,0,0,0,1],
+    "A Brousssard":[5,1,2,0,0,1,0,0,0,0,0,0], "B Siow":[4,1,3,1,1,0,1,0,0,0,0,0],
+    "B Riser":[4,1,1,1,0,2,0,0,0,0,0,0] }},
+  { date:"Jul 25", opp:"Knights", res:"W", score:"14\u20131", lines:{
+    "F Pankovcin":[4,3,3,2,0,1,0,2,0,0,0,0], "J Shnider":[4,1,3,3,0,0,0,0,0,0,0,0],
+    "C Hoffman":[4,2,2,0,0,1,0,0,0,0,0,1], "B Siow":[3,2,3,2,0,0,0,0,0,0,0,1],
+    "C Won":[3,1,1,1,0,2,1,0,0,0,0,0], "R Cruz":[2,1,0,0,1,2,0,0,0,0,0,0],
+    "A Brousssard":[3,1,2,2,0,0,0,0,0,0,0,1], "K Kaupp":[3,1,0,0,0,0,0,0,0,0,0,0],
+    "S Ahn":[2,2,1,2,1,0,0,0,0,0,0,0] }},
+  { date:"Aug 2", opp:"Risers", res:"W", score:"6\u20133", ha:"@", lines:{
+    "F Pankovcin":[4,0,1,1,1,0,0,0,0,0,0,0], "J Shnider":[5,1,0,0,0,1,0,0,0,0,0,0],
+    "C Hwang":[4,0,1,1,0,0,0,0,0,0,0,0], "C Hoffman":[4,0,0,0,0,0,0,0,0,0,0,0],
+    "Z Charles":[3,2,2,1,1,0,1,0,0,0,0,3], "K Kaupp":[4,1,2,3,0,1,1,0,0,0,0,0],
+    "S Ahn":[3,0,1,0,1,1,0,0,0,0,0,1], "B Burmester II":[3,0,1,0,0,1,0,0,0,1,0,1],
+    "A Brousssard":[4,1,1,0,0,0,0,0,0,0,0,1], "B Siow":[3,1,1,0,1,0,0,0,0,0,0,1],
+    "S Paek":[4,0,1,0,0,3,0,0,0,0,0,0] }},
+];
+
+/* Opponent runs per game, same order as GAMES (for RA) */
+const OPP_RUNS = [6,5,16,14,9,8,11,10,1,11,9,10,1,3];
+
+/* ================================================================ */
+const QUAL_PA = 2 * GAMES.length;
+const I = { AB:0,R:1,H:2,RBI:3,BB:4,SO:5,D2:6,T3:7,HR:8,HBP:9,SF:10,SB:11 };
+
+const emptyTot = () => ({G:0,AB:0,R:0,H:0,RBI:0,BB:0,SO:0,D2:0,T3:0,HR:0,HBP:0,SF:0,SB:0});
+function addLine(t,l){ t.G++; t.AB+=l[0];t.R+=l[1];t.H+=l[2];t.RBI+=l[3];t.BB+=l[4];t.SO+=l[5];t.D2+=l[6];t.T3+=l[7];t.HR+=l[8];t.HBP+=l[9];t.SF+=l[10];t.SB+=l[11]; }
+function derive(t){
+  const PA=t.AB+t.BB+t.HBP+t.SF, TB=t.H+t.D2+2*t.T3+3*t.HR;
+  const AVG=t.AB?t.H/t.AB:0, OBP=PA?(t.H+t.BB+t.HBP)/PA:0, SLG=t.AB?TB/t.AB:0;
+  const W1B=t.H-t.D2-t.T3-t.HR;
+  const WOBA=PA?(0.69*t.BB+0.72*t.HBP+0.89*W1B+1.27*t.D2+1.62*t.T3+2.10*t.HR)/PA:0;
+  return {...t,PA,TB,AVG,OBP,SLG,OPS:OBP+SLG,ISO:SLG-AVG,KPCT:PA?t.SO/PA:0,BBPCT:PA?t.BB/PA:0,WOBA};
+}
+const fmt3 = v => { const s=v.toFixed(3); return s.startsWith("0.")?s.slice(1):s; };
+const fmtPct = v => (v*100).toFixed(1);
+
+/* Build players */
+let selGames = new Set(GAMES.map((_,i)=>i));
+const qualPA = () => 2*selGames.size;
+function buildPlayers(){
+  const map = {};
+  GAMES.forEach((g,gi) => { if(!selGames.has(gi)) return; Object.entries(g.lines).forEach(([n,l]) => {
+    if(!map[n]) map[n]={name:n,tot:emptyTot(),log:[]};
+    addLine(map[n].tot,l); map[n].log.push({game:g,line:l});
+  });});
+  return Object.values(map).map(p => { const s=derive(p.tot); return {...p,stats:s,qualified:s.PA>=qualPA()}; });
+}
+let players = buildPlayers();
+
+const team = (() => {
+  const t=emptyTot(); GAMES.forEach(g=>Object.values(g.lines).forEach(l=>addLine(t,l)));
+  const d=derive(t);
+  d.RS = GAMES.reduce((a,g)=>{ let r=0; Object.values(g.lines).forEach(l=>r+=l[1]); return a+r; },0);
+  d.RA = OPP_RUNS.reduce((a,b)=>a+b,0);
+  return d;
+})();
+
+function rollingStat(log, key){
+  return log.map((_,i)=>{
+    const win=log.slice(Math.max(0,i-3),i+1), t=emptyTot();
+    win.forEach(e=>addLine(t,e.line));
+    return {label:log[i].game.date, v:derive(t)[key], n:win.length};
+  });
+}
+const METRICS={OPS:{l:"OPS",f:fmt3},OBP:{l:"OBP",f:fmt3},AVG:{l:"AVG",f:fmt3},KPCT:{l:"K%",f:fmtPct},BBPCT:{l:"BB%",f:fmtPct}};
+let playerMetric="OPS";
+function renderPills(elId, keys, active, onPick){
+  const el=document.getElementById(elId);
+  el.innerHTML=keys.map(k=>`<button class="pill${k===active?" active":""}" data-k="${k}">${k==="DIFF"?"RS/RA":METRICS[k].l}</button>`).join("");
+  if(el.querySelectorAll) el.querySelectorAll(".pill").forEach(b=>
+    b.addEventListener("click", ()=>onPick(b.getAttribute("data-k"))));
+}
+
+const COLS = [
+  {k:"PA",l:"PA"},{k:"AB",l:"AB"},
+  {k:"AVG",l:"AVG",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},
+  {k:"H",l:"H"},{k:"D2",l:"2B"},{k:"T3",l:"3B"},{k:"HR",l:"HR"},{k:"RBI",l:"RBI"},{k:"R",l:"R"},
+  {k:"SB",l:"SB"},{k:"SF",l:"SF"},{k:"SO",l:"K"},{k:"BB",l:"BB"},{k:"HBP",l:"HBP"},
+  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},
+];
+
+let sortKey="OPS", sortDir=-1, selected=null;
+
+/* ---------------- Header ---------------- */
+document.getElementById("record").textContent = RECORD;
+document.getElementById("subline").textContent =
+  `2026 \u00b7 incl. forfeit W 7/18 vs Mariners \u00b7 ${GAMES.length} games tracked`;
+document.getElementById("team-grid").innerHTML = [
+  ["AVG",fmt3(team.AVG)],["OBP",fmt3(team.OBP)],["SLG",fmt3(team.SLG)],
+  ["OPS",fmt3(team.OPS)],["RS",team.RS],["RA",team.RA],
+  ["RS/G",(team.RS/GAMES.length).toFixed(1)],["RA/G",(team.RA/GAMES.length).toFixed(1)],
+].map(([k,v])=>`<div class="team-cell"><div class="k">${k}</div>
+  <div class="v" style="color:${k.startsWith("RA")?"var(--loss)":k.startsWith("RS")?"var(--win)":"var(--ink)"}">${v}</div></div>`).join("");
+function updateHint(){
+  document.getElementById("board-hint").textContent =
+    `Tap a name for drilldown \u00b7 tap headers to sort \u00b7 \u2020 below ${Math.ceil(qualPA())} PA in selected games (rate-stat sorts list qualified first)`;
+}
+updateHint();
+document.getElementById("footnote").textContent =
+  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only.`;
+
+/* ---------------- Leaderboard ---------------- */
+function renderBoard(){
+  const col = COLS.find(c=>c.k===sortKey);
+  let s = [...players].sort((a,b)=>(b.stats[sortKey]-a.stats[sortKey])*(sortDir===-1?1:-1));
+  if(col.r) s = [...s.filter(p=>p.qualified), ...s.filter(p=>!p.qualified)];
+
+  const head = `<thead><tr><th class="name">Player</th>` + COLS.map(c=>
+    `<th data-k="${c.k}" class="${c.k===sortKey?"active":""}">${c.l}${c.k===sortKey?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
+  ).join("") + `</tr></thead>`;
+
+  const body = `<tbody>` + s.map(p=>{
+    const cls = [p.name===selected?"sel":"", col.r&&!p.qualified?"nq-dim":""].join(" ");
+    return `<tr data-p="${p.name}" class="${cls}">
+      <td class="name">${p.name}${p.qualified?"":' <span class="dag">\u2020</span>'}</td>` +
+      COLS.map(c=>{
+        const raw=p.stats[c.k], txt=c.f?c.f(raw):raw;
+        return `<td class="${c.k===sortKey?"hl":""}${!c.f&&raw===0?" z":""}">${txt}</td>`;
+      }).join("") + `</tr>`;
+  }).join("") + `</tbody>`;
+
+  const tbl = document.getElementById("board");
+  tbl.innerHTML = head + body;
+  tbl.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k;
+    if(k===sortKey) sortDir=-sortDir; else { sortKey=k; sortDir=-1; }
+    renderBoard();
+  });
+  tbl.querySelectorAll("tr[data-p]").forEach(tr=>tr.onclick=()=>
+    selectPlayer(tr.dataset.p===selected?null:tr.dataset.p));
+}
+
+/* ---------------- Drilldown ---------------- */
+function selectPlayer(name){
+  selected=name;
+  const box=document.getElementById("drill");
+  if(!name){ box.style.display="none"; renderBoard(); return; }
+  const p=players.find(x=>x.name===name);
+  if(!p){ selected=null; box.style.display="none"; renderBoard(); return; }
+  box.style.display="block";
+  document.getElementById("drill-name").innerHTML =
+    p.name + (p.qualified?"":" <small>(not qualified)</small>");
+  document.getElementById("drill-slash").textContent =
+    `${fmt3(p.stats.AVG)}/${fmt3(p.stats.OBP)}/${fmt3(p.stats.SLG)} \u00b7 ${fmt3(p.stats.OPS)} OPS \u00b7 ${p.stats.PA} PA \u00b7 ${p.stats.G} G`;
+  renderPlayerChartUI();
+  renderGameLog(p);
+  renderBoard();
+  box.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+
+function renderGameLog(p){
+  const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF"];
+  const idx=[I.AB,I.R,I.H,I.D2,I.T3,I.HR,I.RBI,I.BB,I.SO,I.SB,I.HBP,I.SF];
+  document.getElementById("gamelog").innerHTML =
+    `<thead><tr><th class="l">Date</th><th class="l">Opp</th><th class="l">Res</th>`+
+    hdr.map(h=>`<th>${h}</th>`).join("")+`</tr></thead><tbody>`+
+    p.log.map(({game,line})=>`<tr>
+      <td class="l" style="color:var(--dim)">${game.date}</td>
+      <td class="l">${game.opp}</td>
+      <td class="l ${game.res==="W"?"res-w":"res-l"}">${game.res} ${game.score}</td>`+
+      idx.map(i=>`<td${line[i]===0?' class="z"':''}>${line[i]}</td>`).join("")+
+    `</tr>`).join("")+`</tbody>`;
+}
+
+/* Hand-rolled SVG line chart */
+function renderPlayerChartUI(){
+  const p=players.find(x=>x.name===selected); if(!p) return;
+  renderPills("p-pills", ["OPS","OBP","AVG","KPCT","BBPCT"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
+  const m=METRICS[playerMetric];
+  document.getElementById("p-metric-label").textContent=m.l;
+  drawChartInto("chart-box",
+    [{name:m.l, color:"#e8641d", points:rollingStat(p.log, playerMetric)}],
+    {fmt:m.f, refs:[{v:p.stats[playerMetric], label:`season ${m.f(p.stats[playerMetric])}`}],
+     aria:`Rolling 4-game ${m.l} for ${p.name}`});
+}
+function smoothPath(pts){
+  if(pts.length<3) return "M"+pts.map(p=>p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" L");
+  const sm=0.1;
+  let d=`M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[Math.max(0,i-1)], p1=pts[i], p2=pts[i+1], p3=pts[Math.min(pts.length-1,i+2)];
+    const c1x=p1[0]+(p2[0]-p0[0])*sm, c1y=p1[1]+(p2[1]-p0[1])*sm;
+    const c2x=p2[0]-(p3[0]-p1[0])*sm, c2y=p2[1]-(p3[1]-p1[1])*sm;
+    d+=` C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+function drawChartInto(elId, series, opts){
+  const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, tipN=o.tipN||(n=>`last ${n}G`);
+  const n=series[0].points.length;
+  const A=(typeof window!=="undefined" && window.innerWidth<700)?1:0;
+  const W=720, H=245, mL=56+2*A, mR=14, mT=14, mB=32+2*A;
+  const iw=W-mL-mR, ih=H-mT-mB;
+  let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v));
+  let lo=Math.min(...vals), hi=Math.max(...vals);
+  const unit=o.tickUnit||0.05;
+  lo=Math.max(0, Math.floor(lo/unit)*unit); hi=Math.ceil(hi/unit)*unit;
+  if(hi-lo<unit) hi=lo+unit;
+  let step=unit;
+  while((hi-lo)/step>4.5) step+=unit;
+  const x=i=> n===1 ? mL+iw/2 : mL + iw*i/(n-1);
+  const y=v=> mT + ih*(1-(v-lo)/(hi-lo));
+  let ticks=[]; for(let k=0;;k++){ const v=lo+k*step; if(v>hi+1e-9) break; ticks.push(v); }
+  let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${o.aria||""}">`;
+  ticks.forEach(t=>{
+    svg+=`<line x1="${mL}" y1="${y(t)}" x2="${W-mR}" y2="${y(t)}" stroke="#2c3438" stroke-dasharray="2 4"/>`;
+    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${8+A}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
+  });
+  refs.forEach(r=>{
+    svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
+    svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="${8.5+A}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
+  });
+  if(o.shade && series.length===2 && n>1){
+    const a=series[0].points.map((p,i)=>[x(i),y(p.v)]);
+    const b=series[1].points.map((p,i)=>[x(i),y(p.v)]).reverse();
+    const back=smoothPath(b).replace(/^M[^C]*/,"");
+    svg+=`<path d="${smoothPath(a)} L${b[0][0].toFixed(1)} ${b[0][1].toFixed(1)} ${back} Z" fill="#7fb069" fill-opacity="0.06" stroke="none"/>`;
+  }
+  series.forEach(s=>{
+    if(n>1){
+      const pts=s.points.map((p,i)=>[x(i),y(p.v)]);
+      svg+=`<path fill="none" stroke="${s.color}" stroke-width="1" d="${smoothPath(pts)}"/>`;
+    }
+  });
+  series.forEach(s=>s.points.forEach((p,i)=>{
+    const isHl=hl===i;
+    svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?4.5:2.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
+      <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (${tipN(p.n)})</title></circle>`;
+  }));
+  if(series.length>1){
+    series.forEach(s=>{
+      const last=s.points[n-1];
+      svg+=`<text x="${x(n-1)}" y="${y(last.v)-8}" text-anchor="end" font-size="${8.5+A}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
+    });
+  }
+  series[0].points.forEach((p,i)=>{
+    const every=Math.ceil(n/7);
+    if(i%every===0 || i===n-1)
+      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${7.5+A}" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
+  });
+  if(onClick){
+    const halfw = n>1 ? iw/(n-1)/2 : iw/2;
+    series[0].points.forEach((p,i)=>{
+      svg+=`<rect x="${x(i)-halfw}" y="0" width="${halfw*2}" height="${H}" fill="transparent" data-i="${i}" style="cursor:pointer"><title>${p.label} — tap for box score</title></rect>`;
+    });
+  }
+  svg+=`</svg>`;
+  const el=document.getElementById(elId);
+  el.innerHTML=svg;
+  if(onClick && el.querySelectorAll) el.querySelectorAll("[data-i]").forEach(c=>
+    c.addEventListener("click", ()=>onClick(+c.getAttribute("data-i"))));
+}
+
+const teamLog = GAMES.map(g=>{
+  const sum=new Array(12).fill(0);
+  Object.values(g.lines).forEach(l=>l.forEach((v,i)=>sum[i]+=v));
+  return {game:g, line:sum};
+});
+const teamRS = GAMES.map(g=>Object.values(g.lines).reduce((a,l)=>a+l[1],0));
+function cumSum(arr, labels){
+  let s=0;
+  return arr.map((v,i)=>{ s+=v; return {label:labels[i], v:s, n:i+1}; });
+}
+function renderTeamLog(){
+  const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF","OPS"];
+  const idx=[I.AB,I.R,I.H,I.D2,I.T3,I.HR,I.RBI,I.BB,I.SO,I.SB,I.HBP,I.SF];
+  const tbl=document.getElementById("teamlog");
+  tbl.innerHTML =
+    `<thead><tr><th class="l">Date</th><th class="l">Opp</th><th class="l">Res</th>`+
+    hdr.map(h=>`<th>${h}</th>`).join("")+`</tr></thead><tbody>`+
+    teamLog.map(({game,line},i)=>{
+      const t=emptyTot(); addLine(t,line); const gOPS=derive(t).OPS;
+      return `<tr data-g="${i}" style="cursor:pointer" class="${i===selGame?"sel":""}">
+        <td class="l" style="color:var(--dim)">${game.date}</td>
+        <td class="l" style="font-family:var(--disp);font-weight:700">${game.opp}</td>
+        <td class="l ${game.res==="W"?"res-w":"res-l"}">${game.res} ${game.score}</td>`+
+        idx.map(j=>`<td${line[j]===0?' class="z"':''}>${line[j]}</td>`).join("")+
+        `<td>${fmt3(gOPS)}</td></tr>`;
+    }).join("")+`</tbody>`;
+  if(tbl.querySelectorAll) tbl.querySelectorAll("tr[data-g]").forEach(tr=>
+    tr.addEventListener("click", ()=>{
+      showGameBox(+tr.getAttribute("data-g"));
+      const box=document.getElementById("game-box");
+      if(selGame!==null && box.scrollIntoView) box.scrollIntoView({behavior:"smooth", block:"nearest"});
+    }));
+}
+let selGame=null;
+let teamMetric="OPS";
+function renderTeamChart(){
+  renderPills("t-pills", ["OPS","OBP","AVG","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
+  const lbl=document.getElementById("t-metric-label");
+  if(teamMetric==="DIFF"){
+    lbl.textContent="cumulative team RS/RA";
+    const labs=GAMES.map(g=>g.date);
+    drawChartInto("team-chart",
+      [{name:"RS", color:"#7fb069", points:cumSum(teamRS, labs)},
+       {name:"RA", color:"#c9564a", points:cumSum(OPP_RUNS, labs)}],
+      {fmt:v=>Math.round(v).toString(), tickUnit:5, shade:true, aria:"Cumulative season runs scored and allowed",
+       tipN:n=>`thru ${n}G`, onClick:showGameBox, hl:selGame});
+  } else {
+    const m=METRICS[teamMetric];
+    lbl.textContent=`team ${m.l}`;
+    drawChartInto("team-chart",
+      [{name:m.l, color:"#e8641d", points:rollingStat(teamLog, teamMetric)}],
+      {fmt:m.f, refs:[{v:team[teamMetric], label:`season ${m.f(team[teamMetric])}`}],
+       aria:`Rolling 4-game team ${m.l}`, onClick:showGameBox, hl:selGame});
+  }
+}
+function showGameBox(i){
+  selGame = (i===null || i===selGame) ? null : i;
+  const box=document.getElementById("game-box");
+  renderTeamChart();
+  renderTeamLog();
+  if(selGame===null){ box.style.display="none"; return; }
+  const g=GAMES[selGame];
+  box.style.display="block";
+  document.getElementById("game-box-title").innerHTML =
+    `${g.date} ${g.ha||"vs"} ${g.opp} — <span class="${g.res==="W"?"res-w":"res-l"}">${g.res} ${g.score}</span>`;
+  const hdr=["AB","R","H","2B","3B","HR","RBI","BB","K","SB","HBP","SF"];
+  const idx=[I.AB,I.R,I.H,I.D2,I.T3,I.HR,I.RBI,I.BB,I.SO,I.SB,I.HBP,I.SF];
+  const tot=new Array(12).fill(0);
+  const rows=Object.entries(g.lines).map(([n,l])=>{
+    l.forEach((v,j)=>tot[j]+=v);
+    return `<tr><td class="l" style="font-family:var(--disp);font-weight:700">${n}</td>`+
+      idx.map(j=>`<td${l[j]===0?' class="z"':''}>${l[j]}</td>`).join("")+`</tr>`;
+  }).join("");
+  document.getElementById("game-box-tbl").innerHTML =
+    `<thead><tr><th class="l">Player</th>`+hdr.map(h=>`<th>${h}</th>`).join("")+`</tr></thead>
+    <tbody>${rows}
+    <tr style="border-top:2px solid var(--line)"><td class="l" style="color:var(--dim)">Totals</td>`+
+    idx.map(j=>`<td style="font-weight:700">${tot[j]}</td>`).join("")+`</tr></tbody>`;
+}
+const MONTHS={Apr:"April",May:"May",Jun:"June",Jul:"July",Aug:"August",Sep:"September",Oct:"October"};
+const monthOf = d => d.split(" ")[0];
+let gfOpen = {};
+function renderGameFilters(){ ["gf-board","gf-drill"].forEach(renderGameFilter); }
+function renderGameFilter(cid){
+  const el=document.getElementById(cid); if(!el) return;
+  const total=GAMES.length, selN=selGames.size;
+  const label = selN===total ? `All games (${total})` : `${selN} of ${total} games`;
+  let html = `<button class="pill gf-btn"><svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:-1px;margin-right:5px" fill="currentColor"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>${label} \u25be</button>`;
+  if(gfOpen[cid]){
+    const groups=[], seen={};
+    GAMES.forEach((g,i)=>{ const m=monthOf(g.date); if(!(m in seen)){ seen[m]=groups.length; groups.push({m,items:[]}); } groups[seen[m]].items.push(i); });
+    html += `<div class="gf-panel">`;
+    html += `<label class="gf-row gf-all"><input type="checkbox" data-k="all" ${selN===total?"checked":""}>Select all</label>`;
+    groups.forEach(gr=>{
+      const mSel = gr.items.every(i=>selGames.has(i));
+      html += `<label class="gf-row gf-month"><input type="checkbox" data-k="m:${gr.m}" ${mSel?"checked":""}>${MONTHS[gr.m]||gr.m}</label>`;
+      gr.items.forEach(i=>{
+        const g=GAMES[i];
+        html += `<label class="gf-row gf-game"><input type="checkbox" data-k="g:${i}" ${selGames.has(i)?"checked":""}>${g.ha||"vs"} ${g.opp} (${g.score})</label>`;
+      });
+    });
+    html += `</div>`;
+  }
+  el.innerHTML = html;
+  if(!el.querySelectorAll) return;
+  const panel = el.querySelector && el.querySelector(".gf-panel");
+  if(panel && panel.getBoundingClientRect && typeof window!=="undefined"){
+    const r = panel.getBoundingClientRect();
+    const over = r.right - (window.innerWidth - 10);
+    if(over > 0) panel.style.left = (-over) + "px";
+    const r2 = panel.getBoundingClientRect();
+    if(r2.left < 10) panel.style.left = (parseFloat(panel.style.left||0) + (10 - r2.left)) + "px";
+  }
+  el.querySelectorAll(".gf-btn").forEach(b=>b.addEventListener("click", ()=>{ gfOpen[cid]=!gfOpen[cid]; renderGameFilter(cid); }));
+  el.querySelectorAll("input[data-k]").forEach(cb=>cb.addEventListener("change", ()=>{
+    const k=cb.getAttribute("data-k");
+    if(k==="all"){ selGames = cb.checked ? new Set(GAMES.map((_,i)=>i)) : new Set(); }
+    else if(k.startsWith("m:")){ const m=k.slice(2); GAMES.forEach((g,i)=>{ if(monthOf(g.date)===m){ cb.checked?selGames.add(i):selGames.delete(i); } }); }
+    else { const i=+k.slice(2); cb.checked?selGames.add(i):selGames.delete(i); }
+    refreshFromFilter();
+  }));
+}
+function refreshFromFilter(){
+  players = buildPlayers();
+  updateHint();
+  renderGameFilters();
+  if(selected) selectPlayer(selected); else renderBoard();
+}
+if(typeof window!=="undefined" && window.addEventListener){
+  let rzT; window.addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ renderTeamChart(); if(selected) renderPlayerChartUI(); }, 200); });
+}
+if(document.addEventListener) document.addEventListener("click", e=>{
+  if(!Object.keys(gfOpen).some(k=>gfOpen[k])) return;
+  if(document.body && !document.body.contains(e.target)) return;
+  let n=e.target;
+  while(n){ if(n.classList && n.classList.contains("gf")) return; n=n.parentNode; }
+  gfOpen={}; renderGameFilters();
+});
+renderTeamChart();
+renderTeamLog();
+renderBoard();
+renderGameFilters();
+</script>
+</body>
+</html>
