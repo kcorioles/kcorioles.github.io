@@ -267,11 +267,12 @@ const fmt3 = v => { const s=v.toFixed(3); return s.startsWith("0.")?s.slice(1):s
 const fmtPct = v => (v*100).toFixed(1);
 
 /* Build players */
-// Calibration fitted to measured league data: 13 opponent batting lines + our season
-// point, PA-weighted power fit R/PA = 1.595 * wOBA^2.07 (convex, as run scoring is).
-// League average solved from the 9.2 R/G anchor on that curve: wOBA .381 (~.866 OPS).
+// Calibration fitted to measured league data: 13 opponent batting lines, our 2026
+// season point, and our 2024 season (.841 OPS, 8.9 R/G — landed on the curve within
+// 4% out-of-sample before inclusion). PA-weighted power fit R/PA = 1.572 * wOBA^2.04.
+// League average solved from the 9.2 R/G anchor: wOBA .379 (~.861 OPS).
 // k is the curve's slope at league average (linear-weights treatment).
-const CAL = { k: 1.1780, lgWOBA: 0.3814, lgRPA: 0.2172 };
+const CAL = { k: 1.1709, lgWOBA: 0.3792, lgRPA: 0.2178 };
 let selGames = new Set(GAMES.map((_,i)=>i));
 const qualPA = () => 2*selGames.size;
 function buildPlayers(){
@@ -342,7 +343,7 @@ function updateHint(){
 }
 updateHint();
 document.getElementById("footnote").textContent =
-  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only. wRC/wRAA use a convex wOBA-to-runs curve fitted to opponent box scores (R/PA ∝ wOBA^2.07), anchored to a 9.2 R/G league average (≈.381 wOBA / .866 OPS league-average hitter).`;
+  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only. wRC/wRAA use a convex wOBA-to-runs curve fitted to opponent box scores and two team-seasons (R/PA ∝ wOBA^2.04), anchored to a 9.2 R/G league average (≈.379 wOBA / .861 OPS league-average hitter).`;
 
 /* ---------------- Leaderboard ---------------- */
 function renderBoard(){
