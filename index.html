@@ -293,6 +293,9 @@ function rollingStat(log, key){
     return {label:log[i].game.date, v:derive(t)[key], n:win.length};
   });
 }
+function singleStat(log, key){
+  return log.map(e=>{ const t=emptyTot(); addLine(t,e.line); return derive(t)[key]; });
+}
 const METRICS={OPS:{l:"OPS",f:fmt3},OBP:{l:"OBP",f:fmt3},AVG:{l:"AVG",f:fmt3},KPCT:{l:"K%",f:fmtPct},BBPCT:{l:"BB%",f:fmtPct}};
 let playerMetric="OPS";
 function renderPills(elId, keys, active, onPick){
@@ -402,7 +405,8 @@ function renderPlayerChartUI(){
   drawChartInto("chart-box",
     [{name:m.l, color:"#e8641d", points:rollingStat(p.log, playerMetric)}],
     {fmt:m.f, refs:[{v:p.stats[playerMetric], label:`season ${m.f(p.stats[playerMetric])}`}],
-     aria:`Rolling 4-game ${m.l} for ${p.name}`});
+     bars:singleStat(p.log, playerMetric),
+     aria:`Rolling 4-game ${m.l} for ${p.name}, single-game values as columns`});
 }
 function smoothPath(pts){
   if(pts.length<3) return "M"+pts.map(p=>p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" L");
@@ -417,7 +421,7 @@ function smoothPath(pts){
   return d;
 }
 function drawChartInto(elId, series, opts){
-  const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, tipN=o.tipN||(n=>`last ${n}G`);
+  const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, bars=o.bars||null, tipN=o.tipN||(n=>`last ${n}G`);
   const n=series[0].points.length;
   const el0=document.getElementById(elId);
   const cw=(el0&&el0.clientWidth)?el0.clientWidth:720;
@@ -425,7 +429,7 @@ function drawChartInto(elId, series, opts){
   const px=v=> mob ? +(v*1.3*720/cw).toFixed(1) : v;
   const W=720, H=245, mL=mob?Math.round(px(8)*3.2+10):56, mR=14, mT=14, mB=mob?Math.round(px(7.5)+16):32;
   const iw=W-mL-mR, ih=H-mT-mB;
-  let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v));
+  let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v)); if(bars) bars.forEach(v=>vals.push(v));
   let lo=Math.min(...vals), hi=Math.max(...vals);
   const unit=o.tickUnit||0.05;
   lo=Math.max(0, Math.floor(lo/unit)*unit); hi=Math.ceil(hi/unit)*unit;
@@ -440,6 +444,13 @@ function drawChartInto(elId, series, opts){
     svg+=`<line x1="${mL}" y1="${y(t)}" x2="${W-mR}" y2="${y(t)}" stroke="#2c3438" stroke-dasharray="2 4"/>`;
     svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${px(8)}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
   });
+  if(bars){
+    const bw=(n>1? iw/(n-1):iw)*0.5;
+    bars.forEach((v,i)=>{
+      const top=y(v), bot=mT+ih;
+      if(bot-top>0.5) svg+=`<rect x="${(x(i)-bw/2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${series[0].color}" fill-opacity="0.13"><title>${series[0].points[i].label} game: ${fmt(v)}</title></rect>`;
+    });
+  }
   refs.forEach(r=>{
     svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
     svg+=`<text x="${W-mR}" y="${y(r.v)-(mob?px(3):4)}" text-anchor="end" font-size="${px(8.5)}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
@@ -453,12 +464,12 @@ function drawChartInto(elId, series, opts){
   series.forEach(s=>{
     if(n>1){
       const pts=s.points.map((p,i)=>[x(i),y(p.v)]);
-      svg+=`<path fill="none" stroke="${s.color}" stroke-width="1" d="${smoothPath(pts)}"/>`;
+      svg+=`<path fill="none" stroke="${s.color}" stroke-width="1.5" d="${smoothPath(pts)}"/>`;
     }
   });
   series.forEach(s=>s.points.forEach((p,i)=>{
     const isHl=hl===i;
-    svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?4.5:2.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
+    svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?5:3}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
       <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (${tipN(p.n)})</title></circle>`;
   }));
   if(series.length>1){
@@ -537,7 +548,8 @@ function renderTeamChart(){
     drawChartInto("team-chart",
       [{name:m.l, color:"#e8641d", points:rollingStat(teamLog, teamMetric)}],
       {fmt:m.f, refs:[{v:team[teamMetric], label:`season ${m.f(team[teamMetric])}`}],
-       aria:`Rolling 4-game team ${m.l}`, onClick:showGameBox, hl:selGame});
+       bars:singleStat(teamLog, teamMetric),
+       aria:`Rolling 4-game team ${m.l}, single-game values as columns`, onClick:showGameBox, hl:selGame});
   }
 }
 function showGameBox(i){
