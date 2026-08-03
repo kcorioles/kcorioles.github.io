@@ -426,7 +426,7 @@ function drawChartInto(elId, series, opts){
   const el0=document.getElementById(elId);
   const cw=(el0&&el0.clientWidth)?el0.clientWidth:720;
   const mob=(typeof window!=="undefined" && window.innerWidth<700);
-  const px=v=> mob ? +(v*1.3*720/cw).toFixed(1) : v;
+  const px=v=> mob ? +((v*1.3-1)*720/cw).toFixed(1) : v;
   const W=720, H=245, mL=mob?Math.round(px(8)*3.2+10):56, mR=14, mT=14, mB=mob?Math.round(px(7.5)+16):32;
   const iw=W-mL-mR, ih=H-mT-mB;
   let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v)); if(bars) bars.forEach(v=>vals.push(v));
@@ -453,7 +453,34 @@ function drawChartInto(elId, series, opts){
   }
   refs.forEach(r=>{
     svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
-    svg+=`<text x="${W-mR}" y="${y(r.v)-(mob?px(3):4)}" text-anchor="end" font-size="${px(8.5)}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
+    const fs=px(8.5), wTxt=r.label.length*fs*0.62, hTxt=fs*1.15, yLine=y(r.v);
+    const gap=mob?px(3):4;
+    const cands=[
+      {x:W-mR, a:"end",   yy:yLine-gap},
+      {x:W-mR, a:"end",   yy:yLine+gap+hTxt},
+      {x:mL+4, a:"start", yy:yLine-gap},
+      {x:mL+4, a:"start", yy:yLine+gap+hTxt},
+    ];
+    const clearAt=(c)=>{
+      const x1=c.a==="end"?c.x-wTxt:c.x, x2=c.a==="end"?c.x:c.x+wTxt;
+      const yTop=c.yy-hTxt, yBot=c.yy+2;
+      if(yTop<mT-2 || yBot>mT+ih+2) return false;
+      for(const s of series) for(let i=0;i<n;i++){
+        const pxx=x(i), pyy=y(s.points[i].v);
+        if(pxx>=x1-6 && pxx<=x2+6 && pyy>=yTop-3 && pyy<=yBot+3) return false;
+      }
+      if(bars){
+        const bw=(n>1?iw/(n-1):iw)*0.5;
+        for(let i=0;i<n;i++){
+          const bx1=x(i)-bw/2, bx2=x(i)+bw/2, bTop=y(bars[i]), bBot=mT+ih;
+          if(bx2>=x1 && bx1<=x2 && bBot>=yTop && bTop<=yBot) return false;
+        }
+      }
+      return true;
+    };
+    let pick=cands[0];
+    for(const c of cands){ if(clearAt(c)){ pick=c; break; } }
+    svg+=`<text x="${pick.x}" y="${pick.yy.toFixed(1)}" text-anchor="${pick.a}" font-size="${fs}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
   });
   if(o.shade && series.length===2 && n>1){
     const a=series[0].points.map((p,i)=>[x(i),y(p.v)]);
@@ -478,10 +505,14 @@ function drawChartInto(elId, series, opts){
       svg+=`<text x="${x(n-1)}" y="${y(last.v)-(mob?px(6):8)}" text-anchor="end" font-size="${px(8.5)}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
     });
   }
+  let lastXLab="";
   series[0].points.forEach((p,i)=>{
     const every=Math.ceil(n/(mob?4:7));
-    if(i%every===0 || i===n-1)
-      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${px(7.5)}" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
+    const lab=p.label.replace(/ \(\d+\)$/,"");
+    if((i%every===0 || i===n-1) && lab!==lastXLab){
+      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${px(7.5)}" fill="#8d968f" font-family="Courier New,monospace">${lab}</text>`;
+      lastXLab=lab;
+    }
   });
   if(onClick){
     const halfw = n>1 ? iw/(n-1)/2 : iw/2;
