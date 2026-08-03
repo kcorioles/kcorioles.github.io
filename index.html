@@ -589,7 +589,21 @@ function renderTeamLog(){
         <td class="l ${game.res==="W"?"res-w":"res-l"}">${game.res} ${game.score}</td>`+
         idx.map(j=>`<td${line[j]===0?' class="z"':''}>${line[j]}</td>`).join("")+
         `<td>${fmt3(gOPS)}</td></tr>`;
-    }).join("")+`</tbody>`;
+    }).join("")+
+    (()=>{
+      const tt=emptyTot(); teamLog.forEach(e=>addLine(tt,e.line));
+      const d=derive(tt);
+      const w=GAMES.filter(g=>g.res==="W").length, l=GAMES.length-w;
+      return `<tr style="border-top:2px solid var(--line)">
+        <td class="l" style="color:var(--dim)">Totals</td>
+        <td class="l"></td>
+        <td class="l" style="font-family:var(--mono)">${w}\u2013${l}</td>`+
+        idx.map(j=>{
+          const key=["AB","R","H","D2","T3","HR","RBI","BB","SO","SB","HBP","SF"][idx.indexOf(j)];
+          return `<td style="font-weight:700">${d[key]}</td>`;
+        }).join("")+
+        `<td style="font-weight:700">${fmt3(d.OPS)}</td></tr>`;
+    })()+`</tbody>`;
   if(tbl.querySelectorAll) tbl.querySelectorAll("tr[data-g]").forEach(tr=>
     tr.addEventListener("click", ()=>{
       showGameBox(+tr.getAttribute("data-g"));
