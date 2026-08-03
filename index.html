@@ -419,8 +419,11 @@ function smoothPath(pts){
 function drawChartInto(elId, series, opts){
   const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, tipN=o.tipN||(n=>`last ${n}G`);
   const n=series[0].points.length;
-  const A=(typeof window!=="undefined" && window.innerWidth<700)?1:0;
-  const W=720, H=245, mL=56+2*A, mR=14, mT=14, mB=32+2*A;
+  const el0=document.getElementById(elId);
+  const cw=(el0&&el0.clientWidth)?el0.clientWidth:720;
+  const mob=(typeof window!=="undefined" && window.innerWidth<700);
+  const px=v=> mob ? +(v*1.3*720/cw).toFixed(1) : v;
+  const W=720, H=245, mL=mob?Math.round(px(8)*3.2+10):56, mR=14, mT=14, mB=mob?Math.round(px(7.5)+16):32;
   const iw=W-mL-mR, ih=H-mT-mB;
   let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v));
   let lo=Math.min(...vals), hi=Math.max(...vals);
@@ -435,11 +438,11 @@ function drawChartInto(elId, series, opts){
   let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${o.aria||""}">`;
   ticks.forEach(t=>{
     svg+=`<line x1="${mL}" y1="${y(t)}" x2="${W-mR}" y2="${y(t)}" stroke="#2c3438" stroke-dasharray="2 4"/>`;
-    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${8+A}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
+    svg+=`<text x="${mL-6}" y="${y(t)+3.5}" text-anchor="end" font-size="${px(8)}" fill="#8d968f" font-family="Courier New,monospace">${fmt(t)}</text>`;
   });
   refs.forEach(r=>{
     svg+=`<line x1="${mL}" y1="${y(r.v)}" x2="${W-mR}" y2="${y(r.v)}" stroke="#8d968f" stroke-dasharray="4 4"/>`;
-    svg+=`<text x="${W-mR}" y="${y(r.v)-4}" text-anchor="end" font-size="${8.5+A}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
+    svg+=`<text x="${W-mR}" y="${y(r.v)-(mob?px(3):4)}" text-anchor="end" font-size="${px(8.5)}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
   });
   if(o.shade && series.length===2 && n>1){
     const a=series[0].points.map((p,i)=>[x(i),y(p.v)]);
@@ -461,13 +464,13 @@ function drawChartInto(elId, series, opts){
   if(series.length>1){
     series.forEach(s=>{
       const last=s.points[n-1];
-      svg+=`<text x="${x(n-1)}" y="${y(last.v)-8}" text-anchor="end" font-size="${8.5+A}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
+      svg+=`<text x="${x(n-1)}" y="${y(last.v)-(mob?px(6):8)}" text-anchor="end" font-size="${px(8.5)}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
     });
   }
   series[0].points.forEach((p,i)=>{
-    const every=Math.ceil(n/7);
+    const every=Math.ceil(n/(mob?4:7));
     if(i%every===0 || i===n-1)
-      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${7.5+A}" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
+      svg+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${px(7.5)}" fill="#8d968f" font-family="Courier New,monospace">${p.label}</text>`;
   });
   if(onClick){
     const halfw = n>1 ? iw/(n-1)/2 : iw/2;
