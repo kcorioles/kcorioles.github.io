@@ -267,15 +267,11 @@ const fmt3 = v => { const s=v.toFixed(3); return s.startsWith("0.")?s.slice(1):s
 const fmtPct = v => (v*100).toFixed(1);
 
 /* Build players */
-const CAL = (() => {
-  const t = emptyTot();
-  GAMES.forEach(g => Object.values(g.lines).forEach(l => addLine(t, l)));
-  const d = derive(t);
-  const paPerG = d.PA / GAMES.length;
-  const k = (d.R / d.PA) / d.WOBA;          // runs per PA per wOBA point
-  const lgRPA = 9.2 / paPerG;               // league 9.2 R/G, same PA environment
-  return { k, lgWOBA: lgRPA / k };
-})();
+// Calibration fitted to measured league data: 13 opponent batting lines + our season
+// point, PA-weighted power fit R/PA = 1.595 * wOBA^2.07 (convex, as run scoring is).
+// League average solved from the 9.2 R/G anchor on that curve: wOBA .381 (~.866 OPS).
+// k is the curve's slope at league average (linear-weights treatment).
+const CAL = { k: 1.1780, lgWOBA: 0.3814, lgRPA: 0.2172 };
 let selGames = new Set(GAMES.map((_,i)=>i));
 const qualPA = () => 2*selGames.size;
 function buildPlayers(){
@@ -286,8 +282,8 @@ function buildPlayers(){
   });});
   return Object.values(map).map(p => {
     const s=derive(p.tot);
-    s.WRC = CAL.k * s.WOBA * s.PA;
     s.WRAA = CAL.k * (s.WOBA - CAL.lgWOBA) * s.PA;
+    s.WRC = CAL.lgRPA * s.PA + s.WRAA;
     return {...p,stats:s,qualified:s.PA>=qualPA()};
   });
 }
@@ -346,7 +342,7 @@ function updateHint(){
 }
 updateHint();
 document.getElementById("footnote").textContent =
-  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only. wRC/wRAA calibrated to a 9.2 R/G league average, team assumed on the wOBA-to-runs best-fit line.`;
+  `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only. wRC/wRAA use a convex wOBA-to-runs curve fitted to opponent box scores (R/PA ∝ wOBA^2.07), anchored to a 9.2 R/G league average (≈.381 wOBA / .866 OPS league-average hitter).`;
 
 /* ---------------- Leaderboard ---------------- */
 function renderBoard(){
