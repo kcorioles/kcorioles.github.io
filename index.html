@@ -625,7 +625,7 @@ function renderGameFilter(cid){
   const el=document.getElementById(cid); if(!el) return;
   const total=GAMES.length, selN=selGames.size;
   const label = selN===total ? `All games (${total})` : `${selN} of ${total} games`;
-  let html = `<button class="pill gf-btn"><svg width="9" height="9" viewBox="0 0 24 24" style="vertical-align:-1px;margin-right:5px" fill="currentColor"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>${label} \u25be</button>`;
+  let html = `<button class="pill gf-btn"><svg width="10" height="10" viewBox="0 0 24 24" style="vertical-align:-1px;margin-right:5px" fill="currentColor"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>${label} \u25be</button>`;
   if(gfOpen[cid]){
     const groups=[], seen={};
     GAMES.forEach((g,i)=>{ const m=monthOf(g.date); if(!(m in seen)){ seen[m]=groups.length; groups.push({m,items:[]}); } groups[seen[m]].items.push(i); });
