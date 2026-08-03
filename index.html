@@ -482,6 +482,8 @@ function drawChartInto(elId, series, opts){
     };
     let pick=cands[0];
     for(const c of cands){ if(clearAt(c)){ pick=c; break; } }
+    const rx1 = pick.a==="end" ? pick.x-wTxt : pick.x;
+    svg+=`<rect x="${(rx1-3).toFixed(1)}" y="${(pick.yy-hTxt).toFixed(1)}" width="${(wTxt+6).toFixed(1)}" height="${(hTxt+3).toFixed(1)}" fill="#181d1f" fill-opacity="0.92" rx="2"/>`;
     svg+=`<text x="${pick.x}" y="${pick.yy.toFixed(1)}" text-anchor="${pick.a}" font-size="${fs}" fill="#8d968f" font-family="Courier New,monospace">${r.label}</text>`;
   });
   if(o.shade && series.length===2 && n>1){
@@ -504,7 +506,11 @@ function drawChartInto(elId, series, opts){
   if(series.length>1){
     series.forEach(s=>{
       const last=s.points[n-1];
-      svg+=`<text x="${x(n-1)}" y="${y(last.v)-(mob?px(6):8)}" text-anchor="end" font-size="${px(8.5)}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
+      const fsS=px(8.5);
+      let ly=y(last.v)-(mob?px(6):8);
+      if(ly < mT+fsS) ly = Math.min(y(last.v)+fsS+(mob?px(4):6), mT+ih-2);
+      if(ly > mT+ih-2) ly = mT+ih-2;
+      svg+=`<text x="${x(n-1)}" y="${ly.toFixed(1)}" text-anchor="end" font-size="${fsS}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
     });
   }
   let lastXLab="";
