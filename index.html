@@ -432,7 +432,8 @@ function drawChartInto(elId, series, opts){
   let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v)); if(bars) bars.forEach(v=>vals.push(v));
   let lo=Math.min(...vals), hi=Math.max(...vals);
   const unit=o.tickUnit||0.05;
-  lo=Math.max(0, Math.floor(lo/unit)*unit); hi=Math.ceil(hi/unit)*unit;
+  if(o.yMin!==undefined) lo=Math.min(lo,o.yMin);
+  lo=Math.max(0, Math.floor(lo/unit)*unit - unit); hi=Math.ceil(hi/unit)*unit;
   if(hi-lo<unit) hi=lo+unit;
   let step=unit;
   while((hi-lo)/step>4.5) step+=unit;
@@ -579,7 +580,7 @@ function renderTeamChart(){
     drawChartInto("team-chart",
       [{name:"RS", color:"#7fb069", points:cumSum(teamRS, labs)},
        {name:"RA", color:"#c9564a", points:cumSum(OPP_RUNS, labs)}],
-      {fmt:v=>Math.round(v).toString(), tickUnit:5, shade:true, aria:"Cumulative season runs scored and allowed",
+      {fmt:v=>Math.round(v).toString(), tickUnit:5, yMin:0, shade:true, aria:"Cumulative season runs scored and allowed",
        tipN:n=>`thru ${n}G`, onClick:showGameBox, hl:selGame});
   } else {
     const m=METRICS[teamMetric];
