@@ -79,7 +79,7 @@
   .gf-panel::-webkit-scrollbar-thumb:hover { background:#8d968f; }
   .gf-panel::-webkit-scrollbar-button { display:none; height:0; }
   @supports (-moz-appearance:none) { .gf-panel { scrollbar-width:thin; scrollbar-color:#6a767c transparent; } }
-  .gf-row { display:block; padding:3px 0; font-size:11.5px; cursor:pointer; white-space:nowrap; font-family:var(--disp); color:var(--ink); }
+  .gf-row { display:block; padding:3px 0; font-size:11px; cursor:pointer; white-space:nowrap; font-family:var(--disp); color:var(--ink); }
   .gf-row input { accent-color:var(--orange); margin-right:7px; vertical-align:middle; width:11.5px; height:11.5px; }
   .gf-month { font-weight:700; color:var(--orange-soft); margin-top:7px; }
   .gf-game { padding-left:18px; }
@@ -734,7 +734,7 @@ function renderGameFilter(cid){
   if(prevPanel) gfScroll[cid]=prevPanel.scrollTop;
   const total=GAMES.length, selN=selGames.size;
   const label = selN===total ? `All games (${total})` : `${selN} of ${total} games`;
-  let html = `<button class="pill gf-btn"><svg width="11" height="11" viewBox="0 0 24 24" style="vertical-align:-1px;margin-right:5px" fill="currentColor"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>${label} \u25be</button>`;
+  let html = `<button class="pill gf-btn"><svg width="12" height="12" viewBox="0 0 24 24" style="vertical-align:-1px;margin-right:9px" fill="currentColor"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>${label} \u25be</button>`;
   if(gfOpen[cid]){
     const groups=[], seen={};
     GAMES.forEach((g,i)=>{ const m=monthOf(g.date); if(!(m in seen)){ seen[m]=groups.length; groups.push({m,items:[]}); } groups[seen[m]].items.push(i); });
