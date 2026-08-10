@@ -502,7 +502,7 @@ function drawChartInto(elId, series, opts){
       set.vals.forEach((v,i)=>{
         const top=y(v), bot=mT+ih;
         const tipTxt = o.barTips ? o.barTips[i] : `${series[0].points[i].label} game ${set.name}: ${fmt(v)}`;
-        if(bot-top>0.5) svg+=`<rect class="barhit" data-tip="${tipTxt.replace(/"/g,"&quot;")}" x="${(x(i)-grpW/2+si*bwOne).toFixed(1)}" y="${top.toFixed(1)}" width="${bwOne.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${set.fill}" fill-opacity="${set.opacity}"><title>${tipTxt}</title></rect>`;
+        if(bot-top>0.5) svg+=`<rect class="barhit" data-tip="${tipTxt.replace(/"/g,"&quot;")}" x="${(x(i)-grpW/2+si*bwOne).toFixed(1)}" y="${top.toFixed(1)}" width="${bwOne.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${set.fill}" fill-opacity="${set.opacity}"></rect>`;
       });
     });
   }
@@ -580,7 +580,8 @@ function drawChartInto(elId, series, opts){
   if(onClick){
     const halfw = xstep/2;
     series[0].points.forEach((p,i)=>{
-      svg+=`<rect x="${x(i)-halfw}" y="0" width="${halfw*2}" height="${H}" fill="transparent" data-i="${i}" style="cursor:pointer"><title>${p.label} — tap for box score</title></rect>`;
+      const clickTip = o.barTips ? o.barTips[i] : `${p.label} — tap for box score`;
+      svg+=`<rect x="${x(i)-halfw}" y="0" width="${halfw*2}" height="${H}" fill="transparent" data-i="${i}" data-tip="${clickTip.replace(/"/g,"&quot;")}" style="cursor:pointer"></rect>`;
     });
   }
   svg+=`</svg>`;
@@ -588,7 +589,7 @@ function drawChartInto(elId, series, opts){
   el.innerHTML=svg;
   if(onClick && el.querySelectorAll) el.querySelectorAll("[data-i]").forEach(c=>
     c.addEventListener("click", ()=>onClick(+c.getAttribute("data-i"))));
-  if(el.querySelectorAll) el.querySelectorAll(".barhit").forEach(r=>{
+  if(el.querySelectorAll) el.querySelectorAll("[data-tip]").forEach(r=>{
     r.addEventListener("mouseenter", e=>showTip(e, r.getAttribute("data-tip")));
     r.addEventListener("mousemove", e=>showTip(e, r.getAttribute("data-tip")));
     r.addEventListener("mouseleave", hideTip);
