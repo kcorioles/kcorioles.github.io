@@ -69,6 +69,8 @@
   .pills { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
   .pill { background:transparent; border:1px solid var(--line); color:var(--dim); padding:2px 11px; font-family:var(--mono); font-size:11.5px; cursor:pointer; letter-spacing:.5px; white-space:nowrap; }
   .pill.active { border-color:var(--orange); color:var(--orange); }
+  .charttip { position:fixed; z-index:60; display:none; pointer-events:none; background:var(--panel2); border:1px solid var(--line); color:var(--ink); font-family:var(--mono); font-size:11px; padding:5px 8px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.6); }
+  .barhit { cursor:default; }
   .gf { position:relative; display:inline-block; }
   .gf-panel { position:absolute; left:0; top:calc(100% + 4px); z-index:20; background:var(--panel2); border:1px solid var(--line); padding:8px 12px; width:max-content; min-width:0; max-width:calc(100vw - 24px); max-height:320px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.5); }
   .gf-row { display:block; padding:3px 0; font-size:10.5px; cursor:pointer; white-space:nowrap; font-family:var(--disp); color:var(--ink); }
@@ -312,6 +314,20 @@ function rollingStat(log, key){
     return {label:log[i].game.date, v:derive(t)[key], n:win.length};
   });
 }
+function battingLine(e){
+  const l=e.line, p=[];
+  p.push(`${l[I.H]}-${l[I.AB]}`);
+  if(l[I.D2]) p.push(l[I.D2]>1?l[I.D2]+" 2B":"2B");
+  if(l[I.T3]) p.push(l[I.T3]>1?l[I.T3]+" 3B":"3B");
+  if(l[I.HR]) p.push(l[I.HR]>1?l[I.HR]+" HR":"HR");
+  if(l[I.BB]) p.push(l[I.BB]>1?l[I.BB]+" BB":"BB");
+  if(l[I.HBP]) p.push(l[I.HBP]>1?l[I.HBP]+" HBP":"HBP");
+  if(l[I.SO]) p.push(l[I.SO]>1?l[I.SO]+" K":"K");
+  if(l[I.SB]) p.push(l[I.SB]>1?l[I.SB]+" SB":"SB");
+  if(l[I.R]) p.push(l[I.R]+"R");
+  if(l[I.RBI]) p.push(l[I.RBI]+"RBI");
+  return `${e.game.date} ${e.game.ha||"vs"} ${e.game.opp}  ${p.join(" ")}`;
+}
 function singleStat(log, key){
   return log.map(e=>{ const t=emptyTot(); addLine(t,e.line); return derive(t)[key]; });
 }
@@ -427,6 +443,7 @@ function renderPlayerChartUI(){
       {fmt:fmtPct,
        bars:[{name:"K%",  vals:singleStat(p.log,"KPCT"),  fill:"#c9564a", opacity:0.16},
              {name:"BB%", vals:singleStat(p.log,"BBPCT"), fill:"#2e9fb0", opacity:0.16}],
+       barTips: p.log.map(e=>battingLine(e)),
        aria:`Rolling 4-game K% and BB% for ${p.name}`});
     return;
   }
@@ -436,6 +453,7 @@ function renderPlayerChartUI(){
     [{name:m.l, color:"#e8641d", points:rollingStat(p.log, playerMetric)}],
     {fmt:m.f, refs:[{v:p.stats[playerMetric]}],
      bars:[{name:m.l, vals:singleStat(p.log, playerMetric), fill:"#ffffff", opacity:0.10}],
+     barTips: p.log.map(e=>battingLine(e)),
      aria:`Rolling 4-game ${m.l} for ${p.name}, single-game values as columns`});
 }
 function smoothPath(pts){
@@ -483,7 +501,8 @@ function drawChartInto(elId, series, opts){
     bars.forEach((set,si)=>{
       set.vals.forEach((v,i)=>{
         const top=y(v), bot=mT+ih;
-        if(bot-top>0.5) svg+=`<rect x="${(x(i)-grpW/2+si*bwOne).toFixed(1)}" y="${top.toFixed(1)}" width="${bwOne.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${set.fill}" fill-opacity="${set.opacity}"><title>${series[0].points[i].label} game ${set.name}: ${fmt(v)}</title></rect>`;
+        const tipTxt = o.barTips ? o.barTips[i] : `${series[0].points[i].label} game ${set.name}: ${fmt(v)}`;
+        if(bot-top>0.5) svg+=`<rect class="barhit" data-tip="${tipTxt.replace(/"/g,"&quot;")}" x="${(x(i)-grpW/2+si*bwOne).toFixed(1)}" y="${top.toFixed(1)}" width="${bwOne.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${set.fill}" fill-opacity="${set.opacity}"><title>${tipTxt}</title></rect>`;
       });
     });
   }
@@ -569,7 +588,26 @@ function drawChartInto(elId, series, opts){
   el.innerHTML=svg;
   if(onClick && el.querySelectorAll) el.querySelectorAll("[data-i]").forEach(c=>
     c.addEventListener("click", ()=>onClick(+c.getAttribute("data-i"))));
+  if(el.querySelectorAll) el.querySelectorAll(".barhit").forEach(r=>{
+    r.addEventListener("mouseenter", e=>showTip(e, r.getAttribute("data-tip")));
+    r.addEventListener("mousemove", e=>showTip(e, r.getAttribute("data-tip")));
+    r.addEventListener("mouseleave", hideTip);
+  });
 }
+let tipEl=null;
+function showTip(e, txt){
+  if(!document.body) return;
+  if(!tipEl){ tipEl=document.createElement("div"); tipEl.className="charttip"; document.body.appendChild(tipEl); }
+  tipEl.textContent=txt;
+  tipEl.style.display="block";
+  const pad=12;
+  let lx=e.clientX+pad, ly=e.clientY+pad;
+  const w=tipEl.offsetWidth, h=tipEl.offsetHeight;
+  if(lx+w>window.innerWidth-6) lx=e.clientX-w-pad;
+  if(ly+h>window.innerHeight-6) ly=e.clientY-h-pad;
+  tipEl.style.left=lx+"px"; tipEl.style.top=ly+"px";
+}
+function hideTip(){ if(tipEl) tipEl.style.display="none"; }
 
 const teamLog = GAMES.map(g=>{
   const sum=new Array(12).fill(0);
@@ -631,6 +669,8 @@ function renderTeamChart(){
       {fmt:fmtPct,
        bars:[{name:"K%",  vals:singleStat(teamLog,"KPCT"),  fill:"#c9564a", opacity:0.16},
              {name:"BB%", vals:singleStat(teamLog,"BBPCT"), fill:"#2e9fb0", opacity:0.16}],
+       barTips: teamLog.map(e=>{ const t=emptyTot(); addLine(t,e.line); const d=derive(t);
+         return `${e.game.date} ${e.game.ha||"vs"} ${e.game.opp}  ${fmt3(d.AVG)}/${fmt3(d.OBP)}/${fmt3(d.SLG)}  ${fmt3(d.OPS)} OPS`; }),
        aria:"Rolling 4-game team K% and BB%", onClick:showGameBox, hl:selGame});
   } else if(teamMetric==="DIFF"){
     lbl.textContent="cumulative team RS/RA";
@@ -647,6 +687,8 @@ function renderTeamChart(){
       [{name:m.l, color:"#e8641d", points:rollingStat(teamLog, teamMetric)}],
       {fmt:m.f, refs:[{v:team[teamMetric], label:`season ${m.f(team[teamMetric])}`}],
        bars:[{name:m.l, vals:singleStat(teamLog, teamMetric), fill:"#ffffff", opacity:0.10}],
+       barTips: teamLog.map(e=>{ const t=emptyTot(); addLine(t,e.line); const d=derive(t);
+         return `${e.game.date} ${e.game.ha||"vs"} ${e.game.opp}  ${fmt3(d.AVG)}/${fmt3(d.OBP)}/${fmt3(d.SLG)}  ${fmt3(d.OPS)} OPS`; }),
        aria:`Rolling 4-game team ${m.l}, single-game values as columns`, onClick:showGameBox, hl:selGame});
   }
 }
