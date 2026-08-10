@@ -721,8 +721,11 @@ const MONTHS={Apr:"April",May:"May",Jun:"June",Jul:"July",Aug:"August",Sep:"Sept
 const monthOf = d => d.split(" ")[0];
 let gfOpen = {};
 function renderGameFilters(){ ["gf-board","gf-drill"].forEach(renderGameFilter); }
+const gfScroll={};
 function renderGameFilter(cid){
   const el=document.getElementById(cid); if(!el) return;
+  const prevPanel = el.querySelector && el.querySelector(".gf-panel");
+  if(prevPanel) gfScroll[cid]=prevPanel.scrollTop;
   const total=GAMES.length, selN=selGames.size;
   const label = selN===total ? `All games (${total})` : `${selN} of ${total} games`;
   let html = `<button class="pill gf-btn"><svg width="10" height="10" viewBox="0 0 24 24" style="vertical-align:-1px;margin-right:5px" fill="currentColor"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>${label} \u25be</button>`;
@@ -744,6 +747,7 @@ function renderGameFilter(cid){
   el.innerHTML = html;
   if(!el.querySelectorAll) return;
   const panel = el.querySelector && el.querySelector(".gf-panel");
+  if(panel && gfScroll[cid]) panel.scrollTop = gfScroll[cid];
   if(panel && panel.getBoundingClientRect && typeof window!=="undefined"){
     const r = panel.getBoundingClientRect();
     const over = r.right - (window.innerWidth - 10);
@@ -751,7 +755,8 @@ function renderGameFilter(cid){
     const r2 = panel.getBoundingClientRect();
     if(r2.left < 10) panel.style.left = (parseFloat(panel.style.left||0) + (10 - r2.left)) + "px";
   }
-  el.querySelectorAll(".gf-btn").forEach(b=>b.addEventListener("click", ()=>{ gfOpen[cid]=!gfOpen[cid]; renderGameFilter(cid); }));
+  if(panel && panel.addEventListener) panel.addEventListener("scroll", ()=>{ gfScroll[cid]=panel.scrollTop; });
+  el.querySelectorAll(".gf-btn").forEach(b=>b.addEventListener("click", ()=>{ gfOpen[cid]=!gfOpen[cid]; if(!gfOpen[cid]) gfScroll[cid]=0; renderGameFilter(cid); }));
   el.querySelectorAll("input[data-k]").forEach(cb=>cb.addEventListener("change", ()=>{
     const k=cb.getAttribute("data-k");
     if(k==="all"){ selGames = cb.checked ? new Set(GAMES.map((_,i)=>i)) : new Set(); }
