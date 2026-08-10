@@ -72,7 +72,11 @@
   .charttip { position:fixed; z-index:60; display:none; pointer-events:none; background:var(--panel2); border:1px solid var(--line); color:var(--ink); font-family:var(--mono); font-size:11px; padding:5px 8px; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.6); }
   .barhit { cursor:default; }
   .gf { position:relative; display:inline-block; }
-  .gf-panel { position:absolute; left:0; top:calc(100% + 4px); z-index:20; background:var(--panel2); border:1px solid var(--line); padding:8px 12px; width:max-content; min-width:0; max-width:calc(100vw - 24px); max-height:320px; overflow-y:auto; box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  .gf-panel { position:absolute; left:0; top:calc(100% + 4px); z-index:20; background:var(--panel2); border:1px solid var(--line); padding:8px 12px; width:max-content; min-width:0; max-width:calc(100vw - 24px); max-height:320px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:#3d474b transparent; box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  .gf-panel::-webkit-scrollbar { width:5px; }
+  .gf-panel::-webkit-scrollbar-track { background:transparent; }
+  .gf-panel::-webkit-scrollbar-thumb { background:#3d474b; border-radius:3px; }
+  .gf-panel::-webkit-scrollbar-thumb:hover { background:#556166; }
   .gf-row { display:block; padding:3px 0; font-size:10.5px; cursor:pointer; white-space:nowrap; font-family:var(--disp); color:var(--ink); }
   .gf-row input { accent-color:var(--orange); margin-right:7px; vertical-align:middle; width:11.5px; height:11.5px; }
   .gf-month { font-weight:700; color:var(--orange-soft); margin-top:7px; }
