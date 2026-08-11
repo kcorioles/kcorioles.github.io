@@ -508,7 +508,7 @@ function drawChartInto(elId, series, opts){
       set.vals.forEach((v,i)=>{
         const top=y(v), bot=mT+ih;
         const tipTxt = o.barTips ? o.barTips[i] : `${series[0].points[i].label} game ${set.name}: ${fmt(v)}`;
-        if(bot-top>0.5) svg+=`<rect class="barhit" data-tip="${tipTxt.replace(/"/g,"&quot;")}" x="${(x(i)-grpW/2+si*bwOne).toFixed(1)}" y="${top.toFixed(1)}" width="${bwOne.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${set.fill}" fill-opacity="${set.opacity}"></rect>`;
+        if(bot-top>0.5) svg+=`<rect class="barhit" data-g="${i}" data-tip="${tipTxt.replace(/"/g,"&quot;")}" x="${(x(i)-grpW/2+si*bwOne).toFixed(1)}" y="${top.toFixed(1)}" width="${bwOne.toFixed(1)}" height="${(bot-top).toFixed(1)}" fill="${set.fill}" fill-opacity="${set.opacity}"></rect>`;
       });
     });
   }
@@ -561,7 +561,7 @@ function drawChartInto(elId, series, opts){
   });
   series.forEach(s=>s.points.forEach((p,i)=>{
     const isHl=hl===i;
-    svg+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${isHl?5:3}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
+    svg+=`<circle class="dot" data-g="${i}" cx="${x(i)}" cy="${y(p.v)}" r="${isHl?4.5:2.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
       <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (${tipN(p.n)})</title></circle>`;
   }));
   if(series.length>1){
@@ -587,7 +587,7 @@ function drawChartInto(elId, series, opts){
     const halfw = xstep/2;
     series[0].points.forEach((p,i)=>{
       const clickTip = o.barTips ? o.barTips[i] : `${p.label} — tap for box score`;
-      svg+=`<rect x="${x(i)-halfw}" y="0" width="${halfw*2}" height="${H}" fill="transparent" data-i="${i}" data-tip="${clickTip.replace(/"/g,"&quot;")}" style="cursor:pointer"></rect>`;
+      svg+=`<rect class="hitcol" data-g="${i}" x="${x(i)-halfw}" y="0" width="${halfw*2}" height="${H}" fill="transparent" data-i="${i}" data-tip="${clickTip.replace(/"/g,"&quot;")}" style="cursor:pointer"></rect>`;
     });
   }
   svg+=`</svg>`;
@@ -596,9 +596,26 @@ function drawChartInto(elId, series, opts){
   if(onClick && el.querySelectorAll) el.querySelectorAll("[data-i]").forEach(c=>
     c.addEventListener("click", ()=>onClick(+c.getAttribute("data-i"))));
   if(el.querySelectorAll) el.querySelectorAll("[data-tip]").forEach(r=>{
-    r.addEventListener("mouseenter", e=>showTip(e, r.getAttribute("data-tip")));
+    const gi=r.getAttribute("data-g");
+    const on=()=>{
+      el.querySelectorAll(`.barhit[data-g="${gi}"]`).forEach(b=>{
+        if(!b.getAttribute("data-baseop")) b.setAttribute("data-baseop", b.getAttribute("fill-opacity"));
+        b.setAttribute("fill-opacity", Math.min(1, parseFloat(b.getAttribute("data-baseop"))*3.2).toFixed(3));
+      });
+      el.querySelectorAll(`.dot[data-g="${gi}"]`).forEach(d=>{
+        if(!d.getAttribute("data-baser")){ d.setAttribute("data-baser", d.getAttribute("r")); d.setAttribute("data-basefill", d.getAttribute("fill")); }
+        d.setAttribute("r", (parseFloat(d.getAttribute("data-baser"))+1.5).toFixed(1));
+        d.setAttribute("fill", "#ffffff");
+      });
+    };
+    const off=()=>{
+      el.querySelectorAll(`.barhit[data-g="${gi}"]`).forEach(b=>{ const o=b.getAttribute("data-baseop"); if(o) b.setAttribute("fill-opacity", o); });
+      el.querySelectorAll(`.dot[data-g="${gi}"]`).forEach(d=>{ const br=d.getAttribute("data-baser"); if(br){ d.setAttribute("r", br); d.setAttribute("fill", d.getAttribute("data-basefill")); } });
+      hideTip();
+    };
+    r.addEventListener("mouseenter", e=>{ on(); showTip(e, r.getAttribute("data-tip")); });
     r.addEventListener("mousemove", e=>showTip(e, r.getAttribute("data-tip")));
-    r.addEventListener("mouseleave", hideTip);
+    r.addEventListener("mouseleave", off);
   });
 }
 let tipEl=null;
