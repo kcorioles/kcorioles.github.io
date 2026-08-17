@@ -366,7 +366,7 @@ const COLS = [
   {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},{k:"WRC",l:"wRC",f:v=>v.toFixed(1)},{k:"WRAA",l:"wRAA",f:v=>(v>=0?"+":"")+v.toFixed(1)},
 ];
 
-let sortKey="AVG", sortDir=-1, selected=null;
+let sortKey="OPS", sortDir=-1, selected=null;
 
 /* ---------------- Header ---------------- */
 document.getElementById("record").textContent = RECORD;
