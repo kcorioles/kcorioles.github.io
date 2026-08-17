@@ -64,6 +64,8 @@
   .board-head { display:flex; justify-content:space-between; align-items:baseline; padding:12px 14px 8px; flex-wrap:wrap; gap:6px; }
   .board-title { font-size:13px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; }
   .board-hint { font-size:10.5px; color:var(--dim); }
+  .board-ctrls { display:flex; gap:6px; align-items:center; flex-wrap:nowrap; }
+  @media (max-width:699px){ .board-ctrls { flex-direction:column-reverse; align-items:flex-end; gap:5px; } }
 
   .res-w { color:var(--win); } .res-l { color:var(--loss); }
   .pills { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
@@ -135,7 +137,7 @@
     <div class="board-head">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;flex-wrap:nowrap">
         <div class="board-title">Batting leaderboard</div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
+        <div class="board-ctrls">
           <button class="pill" id="qual-btn"></button>
           <div class="gf" id="gf-board"></div>
         </div>
