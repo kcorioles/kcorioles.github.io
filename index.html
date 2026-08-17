@@ -820,7 +820,7 @@ if(document.addEventListener) document.addEventListener("click", e=>{
 });
 function renderQualBtn(){
   const b=document.getElementById("qual-btn"); if(!b) return;
-  b.textContent = "Qual " + qualMode + " PA/G";
+  b.textContent = "Qualified";
   b.className = "pill" + (qualMode===1 ? " active" : "");
 }
 renderTeamChart();
