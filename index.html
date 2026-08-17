@@ -304,16 +304,43 @@ let qualMode = 2;
 const qualPA = () => qualMode*selGames.size;
 function buildPlayers(){
   const map = {};
-  GAMES.forEach((g,gi) => { if(!selGames.has(gi)) return; Object.entries(g.lines).forEach(([n,l]) => {
-    if(!map[n]) map[n]={name:n,tot:emptyTot(),log:[]};
-    addLine(map[n].tot,l); map[n].log.push({game:g,line:l});
-  });});
-  return Object.values(map).map(p => {
+  const gameSum = {};  // per selected game: 12-component team sums
+  GAMES.forEach((g,gi) => { if(!selGames.has(gi)) return;
+    const arr = new Array(12).fill(0);
+    Object.entries(g.lines).forEach(([n,l]) => {
+      if(!map[n]) map[n]={name:n,tot:emptyTot(),log:[]};
+      addLine(map[n].tot,l); map[n].log.push({game:g,gi,line:l});
+      for(let i=0;i<12;i++) arr[i]+=l[i];
+    });
+    gameSum[gi]=arr;
+  });
+  const list = Object.values(map).map(p => {
     const s=derive(p.tot);
     s.WRAA = CAL.k * (s.WOBA - CAL.lgWOBA) * s.PA;
     s.WRC = CAL.lgRPA * s.PA + s.WRAA;
+    // schedule baseline: leave-one-out team OPS per game, weighted by the player's PA that game
+    let wsum=0, bsum=0;
+    p.log.forEach(e => {
+      const gt=emptyTot(); addLine(gt, e.line);
+      const gd=derive(gt);
+      if(gd.PA===0) return;
+      const loo = gameSum[e.gi].map((v,i)=>v-e.line[i]);
+      const lt=emptyTot(); addLine(lt, loo);
+      const ld=derive(lt);
+      if(ld.PA===0 || ld.AB===0) return;
+      wsum += gd.PA;
+      bsum += gd.PA * ld.OPS;
+    });
+    s.SCHED = wsum>0 ? bsum/wsum : 0;
+    s.OPSP_raw = (s.SCHED>0 && s.PA>0) ? s.OPS/s.SCHED : 0;
     return {...p,stats:s,qualified:s.PA>=qualPA()};
   });
+  // normalize: PA-weighted average of the ratio = 100
+  let wp=0, wr=0;
+  list.forEach(p=>{ if(p.stats.PA>0 && p.stats.OPSP_raw>0){ wp+=p.stats.PA; wr+=p.stats.PA*p.stats.OPSP_raw; } });
+  const mean = wp>0 ? wr/wp : 1;
+  list.forEach(p=>{ p.stats.OPSP = mean>0 ? 100*p.stats.OPSP_raw/mean : 0; });
+  return list;
 }
 let players = buildPlayers();
 
@@ -360,7 +387,7 @@ function renderPills(elId, keys, active, onPick){
 
 const COLS = [
   {k:"PA",l:"PA"},{k:"AB",l:"AB"},
-  {k:"AVG",l:"AVG",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},
+  {k:"AVG",l:"AVG",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},{k:"OPSP",l:"OPS+",r:1,f:v=>String(Math.round(v))},
   {k:"H",l:"H"},{k:"D2",l:"2B"},{k:"T3",l:"3B"},{k:"HR",l:"HR"},{k:"RBI",l:"RBI"},{k:"R",l:"R"},
   {k:"SB",l:"SB"},{k:"SF",l:"SF"},{k:"SO",l:"K"},{k:"BB",l:"BB"},{k:"HBP",l:"HBP"},{k:"TB",l:"TB"},
   {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},{k:"WRC",l:"wRC",f:v=>v.toFixed(1)},{k:"WRAA",l:"wRAA",f:v=>(v>=0?"+":"")+v.toFixed(1)},
