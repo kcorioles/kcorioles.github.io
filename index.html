@@ -379,8 +379,7 @@ document.getElementById("team-grid").innerHTML = [
 ].map(([k,v])=>`<div class="team-cell"><div class="k">${k}</div>
   <div class="v" style="color:${k.startsWith("RA")?"var(--loss)":k.startsWith("RS")?"var(--win)":"var(--ink)"}">${v}</div></div>`).join("");
 function updateHint(){
-  document.getElementById("board-hint").textContent =
-    `Tap a name for drilldown \u00b7 tap headers to sort \u00b7 \u2020 below ${Math.ceil(qualPA())} PA in selected games (rate-stat sorts list qualified first)`;
+  document.getElementById("board-hint").textContent = "Tap a name for drilldown";
 }
 updateHint();
 document.getElementById("footnote").textContent =
