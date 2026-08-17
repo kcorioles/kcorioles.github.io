@@ -135,7 +135,10 @@
     <div class="board-head">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;flex-wrap:nowrap">
         <div class="board-title">Batting leaderboard</div>
-        <div class="gf" id="gf-board"></div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
+          <button class="pill" id="qual-btn"></button>
+          <div class="gf" id="gf-board"></div>
+        </div>
       </div>
       <div class="board-hint" id="board-hint"></div>
     </div>
@@ -295,7 +298,8 @@ const fmtPct = v => (v*100).toFixed(1);
 // k is the curve's slope at league average (linear-weights treatment).
 const CAL = { k: 1.1709, lgWOBA: 0.3792, lgRPA: 0.2178 };
 let selGames = new Set(GAMES.map((_,i)=>i));
-const qualPA = () => 2*selGames.size;
+let qualMode = 2;
+const qualPA = () => qualMode*selGames.size;
 function buildPlayers(){
   const map = {};
   GAMES.forEach((g,gi) => { if(!selGames.has(gi)) return; Object.entries(g.lines).forEach(([n,l]) => {
@@ -814,10 +818,23 @@ if(document.addEventListener) document.addEventListener("click", e=>{
   while(n){ if(n.classList && n.classList.contains("gf")) return; n=n.parentNode; }
   gfOpen={}; renderGameFilters();
 });
+function renderQualBtn(){
+  const b=document.getElementById("qual-btn"); if(!b) return;
+  b.textContent = "Qual " + qualMode + " PA/G";
+  b.className = "pill" + (qualMode===1 ? " active" : "");
+}
 renderTeamChart();
 renderTeamLog();
 renderBoard();
 renderGameFilters();
+renderQualBtn();
+(()=>{ const qb=document.getElementById("qual-btn");
+  if(qb && qb.addEventListener) qb.addEventListener("click", ()=>{
+    qualMode = qualMode===2 ? 1 : 2;
+    renderQualBtn();
+    refreshFromFilter();
+  });
+})();
 </script>
 </body>
 </html>
