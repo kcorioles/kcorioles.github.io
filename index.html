@@ -338,11 +338,19 @@ function buildPlayers(){
     s.OPSP_raw = (s.SCHED>0 && s.PA>0) ? (OPSW*s.OBP + s.SLG)/s.SCHED : 0;
     return {...p,stats:s,qualified:s.PA>=qualPA()};
   });
-  // normalize: PA-weighted average of the ratio = 100
+  // normalize to LEAGUE average = 100: pool mean maps to (team wOPS / league wOPS),
+  // league OBP/SLG derived from CAL.lgWOBA via the fitted conversion maps
   let wp=0, wr=0;
   list.forEach(p=>{ if(p.stats.PA>0 && p.stats.OPSP_raw>0){ wp+=p.stats.PA; wr+=p.stats.PA*p.stats.OPSP_raw; } });
   const mean = wp>0 ? wr/wp : 1;
-  list.forEach(p=>{ p.stats.OPSP = mean>0 ? 100*p.stats.OPSP_raw/mean : 0; });
+  const allArr = new Array(12).fill(0);
+  Object.values(gameSum).forEach(a=>{ for(let i=0;i<12;i++) allArr[i]+=a[i]; });
+  const at=emptyTot(); addLine(at, allArr); const ad=derive(at);
+  const lgOBP = 1.12*CAL.lgWOBA + 0.007;
+  const lgOPS = 2.55*CAL.lgWOBA - 0.106;
+  const LG_WOPS = OPSW*lgOBP + (lgOPS - lgOBP);
+  const S = (ad.PA>0 && LG_WOPS>0) ? (OPSW*ad.OBP + ad.SLG)/LG_WOPS : 1;
+  list.forEach(p=>{ p.stats.OPSP = mean>0 ? 100*(p.stats.OPSP_raw/mean)*S : 0; });
   return list;
 }
 let players = buildPlayers();
@@ -421,7 +429,7 @@ function renderBoard(){
   let s = [...players].sort((a,b)=>(b.stats[sortKey]-a.stats[sortKey])*(sortDir===-1?1:-1));
   if(col.r) s = [...s.filter(p=>p.qualified), ...s.filter(p=>!p.qualified)];
 
-  const OPSP_TIP = "Adjusted for opponents faced: measured against the team\u2019s output in the games each player actually played, using OBP/SLG weights fitted to how runs actually score in this league. 100 = team average.";
+  const OPSP_TIP = "Adjusted for opponents faced: measured against the team\u2019s output in the games each player actually played, using OBP/SLG weights fitted to how runs actually score in this league. 100 = a league-average hitter (from the 9.2 R/G league anchor).";
   const head = `<thead><tr><th class="name">Player</th>` + COLS.map(c=>
     `<th data-k="${c.k}" class="${c.k===sortKey?"active":""}"${c.k==="OPSP"?` data-tip="${OPSP_TIP}"`:""}>${c.l}${c.k===sortKey?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
   ).join("") + `</tr></thead>`;
