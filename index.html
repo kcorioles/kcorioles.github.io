@@ -398,10 +398,10 @@ function renderPills(elId, keys, active, onPick){
 
 const COLS = [
   {k:"PA",l:"PA"},{k:"AB",l:"AB"},
-  {k:"AVG",l:"AVG",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},{k:"OPSP",l:"OPS+",r:1,f:v=>String(Math.round(v))},
+  {k:"AVG",l:"AVG",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},
   {k:"H",l:"H"},{k:"D2",l:"2B"},{k:"T3",l:"3B"},{k:"HR",l:"HR"},{k:"RBI",l:"RBI"},{k:"R",l:"R"},
   {k:"SB",l:"SB"},{k:"SF",l:"SF"},{k:"SO",l:"K"},{k:"BB",l:"BB"},{k:"HBP",l:"HBP"},{k:"TB",l:"TB"},
-  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},{k:"WRC",l:"wRC",f:v=>v.toFixed(1)},{k:"WRAA",l:"wRAA",f:v=>(v>=0?"+":"")+v.toFixed(1)},
+  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},{k:"WRC",l:"wRC",f:v=>v.toFixed(1)},{k:"WRAA",l:"wRAA",f:v=>(v>=0?"+":"")+v.toFixed(1)},{k:"OPSP",l:"OPS+",r:1,f:v=>String(Math.round(v))},
 ];
 
 let sortKey="OPS", sortDir=-1, selected=null;
