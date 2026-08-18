@@ -421,8 +421,9 @@ function renderBoard(){
   let s = [...players].sort((a,b)=>(b.stats[sortKey]-a.stats[sortKey])*(sortDir===-1?1:-1));
   if(col.r) s = [...s.filter(p=>p.qualified), ...s.filter(p=>!p.qualified)];
 
+  const OPSP_TIP = "Adjusted for opponents faced: measured against the team\u2019s output in the games each player actually played, using OBP/SLG weights fitted to how runs actually score in this league. 100 = team average.";
   const head = `<thead><tr><th class="name">Player</th>` + COLS.map(c=>
-    `<th data-k="${c.k}" class="${c.k===sortKey?"active":""}">${c.l}${c.k===sortKey?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
+    `<th data-k="${c.k}" class="${c.k===sortKey?"active":""}"${c.k==="OPSP"?` data-tip="${OPSP_TIP}"`:""}>${c.l}${c.k===sortKey?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
   ).join("") + `</tr></thead>`;
 
   const body = `<tbody>` + s.map(p=>{
@@ -437,6 +438,11 @@ function renderBoard(){
 
   const tbl = document.getElementById("board");
   tbl.innerHTML = head + body;
+  tbl.querySelectorAll("th[data-tip]").forEach(th=>{
+    th.addEventListener("mouseenter", e=>showTip(e, th.getAttribute("data-tip")));
+    th.addEventListener("mousemove", e=>showTip(e, th.getAttribute("data-tip")));
+    th.addEventListener("mouseleave", hideTip);
+  });
   tbl.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{
     const k=th.dataset.k;
     if(k===sortKey) sortDir=-sortDir; else { sortKey=k; sortDir=-1; }
