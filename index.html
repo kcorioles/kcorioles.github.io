@@ -302,6 +302,9 @@ const CAL = { k: 1.1709, lgWOBA: 0.3792, lgRPA: 0.2178 };
 let selGames = new Set(GAMES.map((_,i)=>i));
 let qualMode = 2;
 const qualPA = () => qualMode*selGames.size;
+// OBP:SLG run-value ratio fitted from 29 team-game observations (ours + opponents):
+// weighted WLS of R/PA on game OBP & SLG gives ~1.17:1 (MLB ~1.8). Wide CI [0.6, 2.1].
+const OPSW = 1.17;
 function buildPlayers(){
   const map = {};
   const gameSum = {};  // per selected game: 12-component team sums
@@ -329,10 +332,10 @@ function buildPlayers(){
       const ld=derive(lt);
       if(ld.PA===0 || ld.AB===0) return;
       wsum += gd.PA;
-      bsum += gd.PA * ld.OPS;
+      bsum += gd.PA * (OPSW*ld.OBP + ld.SLG);
     });
     s.SCHED = wsum>0 ? bsum/wsum : 0;
-    s.OPSP_raw = (s.SCHED>0 && s.PA>0) ? s.OPS/s.SCHED : 0;
+    s.OPSP_raw = (s.SCHED>0 && s.PA>0) ? (OPSW*s.OBP + s.SLG)/s.SCHED : 0;
     return {...p,stats:s,qualified:s.PA>=qualPA()};
   });
   // normalize: PA-weighted average of the ratio = 100
