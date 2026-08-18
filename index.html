@@ -293,12 +293,14 @@ const fmt3 = v => { const s=v.toFixed(3); return s.startsWith("0.")?s.slice(1):s
 const fmtPct = v => (v*100).toFixed(1);
 
 /* Build players */
-// Calibration fitted to measured league data: 13 opponent batting lines, our 2026
-// season point, and our 2024 season (.841 OPS, 8.9 R/G — landed on the curve within
-// 4% out-of-sample before inclusion). PA-weighted power fit R/PA = 1.572 * wOBA^2.04.
-// League average solved from the 9.2 R/G anchor: wOBA .379 (~.861 OPS).
+// Calibration fitted to measured league data: 14 opponent batting lines (every game
+// with an opponent box score) plus three team-seasons — 2026 measured directly, 2025
+// (.876 OPS, 10.0 R/G) and 2024 (.841 OPS, 8.9 R/G). PA-weighted power fit:
+// R/PA = 1.652 * wOBA^2.072. Season residuals straddle zero (+1.0 / -2.3 / -0.9%).
+// League average solved from the 9.2 R/G anchor at 8 offensive innings (confirmed
+// against actual innings batted): wOBA .3770 (~.855 OPS).
 // k is the curve's slope at league average (linear-weights treatment).
-const CAL = { k: 1.1709, lgWOBA: 0.3792, lgRPA: 0.2178 };
+const CAL = { k: 1.2027, lgWOBA: 0.3770, lgRPA: 0.2188 };
 let selGames = new Set(GAMES.map((_,i)=>i));
 let qualMode = 2;
 const qualPA = () => qualMode*selGames.size;
