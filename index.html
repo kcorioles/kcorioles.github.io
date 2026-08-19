@@ -978,11 +978,15 @@ if(typeof window!=="undefined" && window.addEventListener){
   let rzT; window.addEventListener("resize", ()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ renderTeamChart(); if(selected) renderPlayerChartUI(); }, 200); });
 }
 if(document.addEventListener) document.addEventListener("click", e=>{
-  if(!Object.keys(gfOpen).some(k=>gfOpen[k])) return;
+  const anyGF = Object.keys(gfOpen).some(k=>gfOpen[k]);
+  if(!anyGF && !mpOpen) return;
   if(document.body && !document.body.contains(e.target)) return;
-  let n=e.target;
-  while(n){ if(n.classList && n.classList.contains("gf")) return; n=n.parentNode; }
-  gfOpen={}; renderGameFilters();
+  let n=e.target, inId=null;
+  while(n){ if(n.classList && n.classList.contains("gf")){ inId=n.id||"gf"; break; } n=n.parentNode; }
+  const closeGF = !(inId==="gf-board" || inId==="gf-drill");
+  const closeMP = inId!=="mp-wrap";
+  if(anyGF && closeGF){ gfOpen={}; renderGameFilters(); }
+  if(mpOpen && closeMP){ mpOpen=false; if(selected) renderPlayerChartUI(); }
 });
 function renderQualBtn(){
   const b=document.getElementById("qual-btn"); if(!b) return;
