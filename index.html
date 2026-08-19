@@ -545,7 +545,8 @@ function renderPlayerChartUI(){
   renderMultiUI();
   if(multiMode){
     const names = multiSel.length? multiSel : [p.name];
-    const key = playerMetric==="KBB" ? "KPCT" : playerMetric;
+    const isKBB = playerMetric==="KBB";
+    const key = isKBB ? "KPCT" : playerMetric;
     const gis = [...selGames].sort((a,b)=>a-b);
     const series = names.slice(0,6).map((nm,i)=>{
       const q=players.find(x=>x.name===nm);
@@ -556,15 +557,17 @@ function renderPlayerChartUI(){
         if(played.length===0){ pts.push({label:GAMES[gi].date, v:null, n:0}); return; }
         const win = chartMode==="cum" ? played : played.slice(-4);
         const t=emptyTot(); win.forEach(e=>addLine(t,e.line));
-        pts.push({label:GAMES[gi].date, v:derive(t)[key], n:win.length});
+        const dd=derive(t);
+        pts.push({label:GAMES[gi].date, v: isKBB ? (dd.BBPCT - dd.KPCT) : dd[key], n:win.length});
       });
       return {name:nm.split(" ").slice(-1)[0], color:MULTI_COLORS[i%6], points:pts};
     });
-    document.getElementById("p-metric-label").textContent =
-      (playerMetric==="KBB"?"K%":METRICS[playerMetric].l) + " \u00b7 " + names.length + " players";
+    const lbl = isKBB ? "BB% \u2212 K%" : METRICS[playerMetric].l;
+    document.getElementById("p-metric-label").textContent = lbl + " \u00b7 " + names.length + " players";
     drawChartInto("chart-box", series,
-      {fmt: playerMetric==="KBB"?fmtPct:METRICS[playerMetric].f, multi:true,
-       aria:`${METRICS[playerMetric]?METRICS[playerMetric].l:"K%"} for ${names.length} players, ${modeWord()}`});
+      {fmt: isKBB ? (v=>(v>0?"+":"")+fmtPct(v)) : METRICS[playerMetric].f, multi:true,
+       refs: isKBB ? [{v:0}] : [],
+       aria:`${lbl} for ${names.length} players, ${modeWord()}`});
     return;
   }
   if(playerMetric==="KBB"){
@@ -646,7 +649,10 @@ function drawChartInto(elId, series, opts){
   let lo=Math.min(...vals), hi=Math.max(...vals);
   const unit=o.tickUnit||0.05;
   if(o.yMin!==undefined) lo=Math.min(lo,o.yMin);
-  lo=Math.max(0, Math.floor(lo/unit)*unit - unit); hi=Math.ceil(hi/unit)*unit;
+  const rawLo=lo;
+  lo=Math.floor(lo/unit)*unit - unit;
+  if(rawLo>=0) lo=Math.max(0, lo);
+  hi=Math.ceil(hi/unit)*unit;
   if(hi-lo<unit) hi=lo+unit;
   let step=unit;
   while((hi-lo)/step>4.5) step+=unit;
