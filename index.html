@@ -17,7 +17,7 @@
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--ink); font-family:var(--disp); }
-  .wrap { max-width:1460px; margin:0 auto; padding:20px 14px 48px; }
+  .wrap { max-width:1230px; margin:0 auto; padding:20px 14px 48px; }
 
   .header { background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--orange); padding:18px 18px 14px; margin-bottom:16px; }
   .title-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; }
@@ -103,8 +103,11 @@
       <div class="sub" id="subline"></div>
     </div>
     <div class="team-grid" id="team-grid"></div>
-    <div class="section-label">Rolling 4-game <span id="t-metric-label">team OPS</span> <span style="text-transform:none;letter-spacing:0">· tap a game for the box score</span></div>
-    <div class="pills" id="t-pills"></div>
+    <div class="section-label"><span id="t-metric-label">team OPS</span> <span style="text-transform:none;letter-spacing:0">· tap a game for the box score</span></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="pills" id="t-pills"></div>
+      <button class="pill" id="t-mode"></button>
+    </div>
     <div id="team-chart"></div>
     <div id="game-box" style="display:none">
       <div class="drill-head" style="margin-top:14px">
@@ -123,8 +126,12 @@
       </div>
       <button class="close-btn" onclick="selectPlayer(null)">Close ✕</button>
     </div>
-    <div class="section-label">Rolling 4-game <span id="p-metric-label">OPS</span></div>
-    <div class="pills" id="p-pills"></div>
+    <div class="section-label"><span id="p-metric-label">OPS</span></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="pills" id="p-pills"></div>
+      <button class="pill" id="p-mode"></button>
+    </div>
+    <div id="p-multi" style="margin-top:7px"></div>
     <div id="chart-box"></div>
     <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <div class="section-label">Game log</div>
@@ -138,6 +145,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;flex-wrap:nowrap">
         <div class="board-title">Batting leaderboard</div>
         <div class="board-ctrls">
+          <button class="pill" id="adv-btn"></button>
           <button class="pill" id="qual-btn"></button>
           <div class="gf" id="gf-board"></div>
         </div>
@@ -308,7 +316,7 @@ const qualPA = () => qualMode*selGames.size;
 const OPSW = 1.17;
 function buildPlayers(){
   const map = {};
-  const gameSum = {};  // per selected game: 12-component team sums
+  const gameSum = {};
   GAMES.forEach((g,gi) => { if(!selGames.has(gi)) return;
     const arr = new Array(12).fill(0);
     Object.entries(g.lines).forEach(([n,l]) => {
@@ -318,41 +326,39 @@ function buildPlayers(){
     });
     gameSum[gi]=arr;
   });
-  const list = Object.values(map).map(p => {
-    const s=derive(p.tot);
-    s.WRAA = CAL.k * (s.WOBA - CAL.lgWOBA) * s.PA;
-    s.WRC = CAL.lgRPA * s.PA + s.WRAA;
-    s.WRCP = s.PA>0 ? 100 * (s.WRC/s.PA) / CAL.lgRPA : 0;
-    // schedule baseline: leave-one-out team OPS per game, weighted by the player's PA that game
-    let wsum=0, bsum=0;
-    p.log.forEach(e => {
-      const gt=emptyTot(); addLine(gt, e.line);
-      const gd=derive(gt);
-      if(gd.PA===0) return;
-      const loo = gameSum[e.gi].map((v,i)=>v-e.line[i]);
-      const lt=emptyTot(); addLine(lt, loo);
-      const ld=derive(lt);
-      if(ld.PA===0 || ld.AB===0) return;
-      wsum += gd.PA;
-      bsum += gd.PA * (OPSW*ld.OBP + ld.SLG);
-    });
-    s.SCHED = wsum>0 ? bsum/wsum : 0;
-    s.OPSP_raw = (s.SCHED>0 && s.PA>0) ? (OPSW*s.OBP + s.SLG)/s.SCHED : 0;
-    return {...p,stats:s,qualified:s.PA>=qualPA()};
-  });
-  // normalize to LEAGUE average = 100: pool mean maps to (team wOPS / league wOPS),
-  // league OBP/SLG derived from CAL.lgWOBA via the fitted conversion maps
-  let wp=0, wr=0;
-  list.forEach(p=>{ if(p.stats.PA>0 && p.stats.OPSP_raw>0){ wp+=p.stats.PA; wr+=p.stats.PA*p.stats.OPSP_raw; } });
-  const mean = wp>0 ? wr/wp : 1;
+  const lgOBP = 1.12*CAL.lgWOBA + 0.007;
+  const lgOPS = 2.55*CAL.lgWOBA - 0.106;
+  const rpaOf = st => CAL.lgRPA + CAL.k*(st.WOBA - CAL.lgWOBA);
   const allArr = new Array(12).fill(0);
   Object.values(gameSum).forEach(a=>{ for(let i=0;i<12;i++) allArr[i]+=a[i]; });
   const at=emptyTot(); addLine(at, allArr); const ad=derive(at);
-  const lgOBP = 1.12*CAL.lgWOBA + 0.007;
-  const lgOPS = 2.55*CAL.lgWOBA - 0.106;
-  const LG_WOPS = OPSW*lgOBP + (lgOPS - lgOBP);
-  const S = (ad.PA>0 && LG_WOPS>0) ? (OPSW*ad.OBP + ad.SLG)/LG_WOPS : 1;
-  list.forEach(p=>{ p.stats.OPSP = mean>0 ? 100*(p.stats.OPSP_raw/mean)*S : 0; });
+  const teamOPS = ad.PA>0 ? ad.OPS : lgOPS;
+  const teamRPA = ad.PA>0 ? rpaOf(ad) : CAL.lgRPA;
+  const list = Object.values(map).map(p => {
+    const s=derive(p.tot);
+    s.WRAA = CAL.k * (s.WOBA - CAL.lgWOBA) * s.PA;
+    s.WRC  = CAL.lgRPA * s.PA + s.WRAA;
+    s.WRCP = s.PA>0 ? 100 * (s.WRC/s.PA) / CAL.lgRPA : 0;
+    s.OPSP = lgOPS>0 ? 100 * s.OPS / lgOPS : 0;
+    s.RPA   = s.PA>0 ? s.R/s.PA : 0;
+    s.RBIPA = s.PA>0 ? s.RBI/s.PA : 0;
+    const tob = s.H + s.BB + s.HBP;
+    s.RTOB  = tob>0 ? s.R/tob : 0;
+    let wsum=0, bOPS=0, bRPA=0;
+    p.log.forEach(e => {
+      const gt=emptyTot(); addLine(gt, e.line); const gd=derive(gt);
+      if(gd.PA===0) return;
+      const loo = gameSum[e.gi].map((v,i)=>v-e.line[i]);
+      const lt=emptyTot(); addLine(lt, loo); const ld=derive(lt);
+      if(ld.PA===0 || ld.AB===0) return;
+      wsum += gd.PA; bOPS += gd.PA*ld.OPS; bRPA += gd.PA*rpaOf(ld);
+    });
+    s.SCHED = wsum>0 ? bOPS/wsum : 0;
+    s.SCHEDR = wsum>0 ? bRPA/wsum : 0;
+    s.OPSPA = (s.SCHED>0 && lgOPS>0) ? 100*(s.OPS/s.SCHED)*(teamOPS/lgOPS) : 0;
+    s.WRCPA = (s.SCHEDR>0) ? 100*(rpaOf(s)/s.SCHEDR)*(teamRPA/CAL.lgRPA) : 0;
+    return {...p,stats:s,qualified:s.PA>=qualPA()};
+  });
   return list;
 }
 let players = buildPlayers();
@@ -365,6 +371,13 @@ const team = (() => {
   return d;
 })();
 
+let chartMode="roll";                       // "roll" | "cum"
+function cumStat(log, key){
+  const t=emptyTot();
+  return log.map((e,i)=>{ addLine(t,e.line); return {label:e.game.date, v:derive(t)[key], n:i+1}; });
+}
+function lineStat(log, key){ return chartMode==="cum" ? cumStat(log,key) : rollingStat(log,key); }
+function modeWord(){ return chartMode==="cum" ? "season-to-date" : "rolling 4-game"; }
 function rollingStat(log, key){
   return log.map((_,i)=>{
     const win=log.slice(Math.max(0,i-3),i+1), t=emptyTot();
@@ -389,7 +402,7 @@ function battingLine(e){
 function singleStat(log, key){
   return log.map(e=>{ const t=emptyTot(); addLine(t,e.line); return derive(t)[key]; });
 }
-const METRICS={OPS:{l:"OPS",f:fmt3},OBP:{l:"OBP",f:fmt3},AVG:{l:"AVG",f:fmt3},KPCT:{l:"K%",f:fmtPct},BBPCT:{l:"BB%",f:fmtPct},KBB:{l:"K/BB%",f:fmtPct}};
+const METRICS={OPS:{l:"OPS",f:fmt3},OBP:{l:"OBP",f:fmt3},SLG:{l:"SLG",f:fmt3},AVG:{l:"AVG",f:fmt3},WOBA:{l:"wOBA",f:fmt3},KPCT:{l:"K%",f:fmtPct},BBPCT:{l:"BB%",f:fmtPct},KBB:{l:"K/BB%",f:fmtPct}};
 let playerMetric="OPS";
 function renderPills(elId, keys, active, onPick){
   const el=document.getElementById(elId);
@@ -398,13 +411,29 @@ function renderPills(elId, keys, active, onPick){
     b.addEventListener("click", ()=>onPick(b.getAttribute("data-k"))));
 }
 
-const COLS = [
+const TIP_ADJ = "Adjusted for opponent quality, measured by how the rest of the team hit in that same game.";
+const COLS_STD = [
   {k:"PA",l:"PA"},{k:"AB",l:"AB"},
   {k:"AVG",l:"AVG",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},
   {k:"H",l:"H"},{k:"D2",l:"2B"},{k:"T3",l:"3B"},{k:"HR",l:"HR"},{k:"RBI",l:"RBI"},{k:"R",l:"R"},
   {k:"SB",l:"SB"},{k:"SF",l:"SF"},{k:"SO",l:"K"},{k:"BB",l:"BB"},{k:"HBP",l:"HBP"},{k:"TB",l:"TB"},
-  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},{k:"ISO",l:"ISO",r:1,f:fmt3},{k:"WOBA",l:"wOBA",r:1,f:fmt3},{k:"WRC",l:"wRC",f:v=>v.toFixed(1)},{k:"WRAA",l:"wRAA",f:v=>(v>=0?"+":"")+v.toFixed(1)},{k:"OPSP",l:"OPS+",r:1,f:v=>String(Math.round(v))},
+  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},
+  {k:"OPSP",l:"OPS+",r:1,f:v=>String(Math.round(v))},
 ];
+const COLS_ADV = [
+  {k:"PA",l:"PA"},{k:"AB",l:"AB"},
+  {k:"WOBA",l:"wOBA",r:1,f:fmt3},{k:"OPS",l:"OPS",r:1,f:fmt3},{k:"OBP",l:"OBP",r:1,f:fmt3},{k:"SLG",l:"SLG",r:1,f:fmt3},{k:"ISO",l:"ISO",r:1,f:fmt3},
+  {k:"WRC",l:"wRC",f:v=>v.toFixed(1)},{k:"WRAA",l:"wRAA",f:v=>(v>=0?"+":"")+v.toFixed(1)},
+  {k:"WRCP",l:"wRC+",r:1,f:v=>String(Math.round(v))},
+  {k:"OPSP",l:"OPS+",r:1,f:v=>String(Math.round(v))},
+  {k:"OPSPA",l:"adjOPS+",r:1,f:v=>String(Math.round(v)),tip:TIP_ADJ},
+  {k:"WRCPA",l:"adjwRC+",r:1,f:v=>String(Math.round(v)),tip:TIP_ADJ},
+  {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},
+  {k:"RPA",l:"R/PA",r:1,f:v=>v.toFixed(3)},{k:"RBIPA",l:"RBI/PA",r:1,f:v=>v.toFixed(3)},
+  {k:"RTOB",l:"R/TOB",r:1,f:v=>v.toFixed(3)},
+];
+let advMode=false;
+const COLS = COLS_STD;
 
 let sortKey="OPS", sortDir=-1, selected=null;
 
@@ -426,21 +455,23 @@ document.getElementById("footnote").textContent =
   `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only. wRC/wRAA use a convex wOBA-to-runs curve fitted to opponent box scores and two team-seasons (R/PA ∝ wOBA^2.04), anchored to a 9.2 R/G league average (≈.379 wOBA / .861 OPS league-average hitter).`;
 
 /* ---------------- Leaderboard ---------------- */
+function activeCols(){ return advMode ? COLS_ADV : COLS_STD; }
 function renderBoard(){
-  const col = COLS.find(c=>c.k===sortKey);
+  const CS = activeCols();
+  if(!CS.some(c=>c.k===sortKey)) sortKey = CS.some(c=>c.k==="OPS") ? "OPS" : CS[0].k;
+  const col = CS.find(c=>c.k===sortKey);
   let s = [...players].sort((a,b)=>(b.stats[sortKey]-a.stats[sortKey])*(sortDir===-1?1:-1));
   if(col.r) s = [...s.filter(p=>p.qualified), ...s.filter(p=>!p.qualified)];
 
-  const OPSP_TIP = "Adjusted for opponents faced: measured against the team\u2019s output in the games each player actually played, using OBP/SLG weights fitted to how runs actually score in this league. 100 = a league-average hitter (from the 9.2 R/G league anchor).";
-  const head = `<thead><tr><th class="name">Player</th>` + COLS.map(c=>
-    `<th data-k="${c.k}" class="${c.k===sortKey?"active":""}"${c.k==="OPSP"?` data-tip="${OPSP_TIP}"`:""}>${c.l}${c.k===sortKey?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
+  const head = `<thead><tr><th class="name">Player</th>` + CS.map(c=>
+    `<th data-k="${c.k}" class="${c.k===sortKey?"active":""}"${c.tip?` data-tip="${c.tip}"`:""}>${c.l}${c.k===sortKey?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
   ).join("") + `</tr></thead>`;
 
   const body = `<tbody>` + s.map(p=>{
     const cls = [p.name===selected?"sel":"", col.r&&!p.qualified?"nq-dim":""].join(" ");
     return `<tr data-p="${p.name}" class="${cls}">
       <td class="name">${p.name}${p.qualified?"":' <span class="dag">\u2020</span>'}</td>` +
-      COLS.map(c=>{
+      CS.map(c=>{
         const raw=p.stats[c.k], txt=c.f?c.f(raw):raw;
         return `<td class="${c.k===sortKey?"hl":""}${!c.f&&raw===0?" z":""}">${txt}</td>`;
       }).join("") + `</tr>`;
@@ -460,9 +491,9 @@ function renderBoard(){
   });
   tbl.querySelectorAll("tr[data-p]").forEach(tr=>tr.onclick=()=>
     selectPlayer(tr.dataset.p===selected?null:tr.dataset.p));
+  const ab=document.getElementById("adv-btn");
+  if(ab){ ab.textContent = advMode ? "Advanced" : "Standard"; ab.className = "pill" + (advMode?" active":""); }
 }
-
-/* ---------------- Drilldown ---------------- */
 function selectPlayer(name){
   selected=name;
   const box=document.getElementById("drill");
@@ -495,30 +526,93 @@ function renderGameLog(p){
 }
 
 /* Hand-rolled SVG line chart */
+const MULTI_COLORS=["#e8641d","#2e9fb0","#7fb069","#c9564a","#b08cd8"];
+let multiMode=false, multiSel=[];
+function multiEligible(){ return players.filter(p=>p.stats.PA>=selGames.size).map(p=>p.name).sort(); }
 function renderPlayerChartUI(){
   const p=players.find(x=>x.name===selected); if(!p) return;
-  renderPills("p-pills", ["OPS","OBP","AVG","KBB"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
+  renderPills("p-pills", ["OPS","OBP","SLG","AVG","WOBA","KBB"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
+  const mb=document.getElementById("p-mode");
+  if(mb){ mb.textContent = chartMode==="cum" ? "Season to date" : "Rolling 4";
+          mb.className = "pill" + (chartMode==="cum"?" active":""); }
+  renderMultiUI();
+  if(multiMode){
+    const names = multiSel.length? multiSel : [p.name];
+    const key = playerMetric==="KBB" ? "KPCT" : playerMetric;
+    const gis = [...selGames].sort((a,b)=>a-b);
+    const series = names.slice(0,5).map((nm,i)=>{
+      const q=players.find(x=>x.name===nm);
+      const byG={}; q.log.forEach(e=>byG[e.gi]=e);
+      const played=[]; const pts=[];
+      gis.forEach(gi=>{
+        if(byG[gi]) played.push(byG[gi]);
+        if(played.length===0){ pts.push({label:GAMES[gi].date, v:null, n:0}); return; }
+        const win = chartMode==="cum" ? played : played.slice(-4);
+        const t=emptyTot(); win.forEach(e=>addLine(t,e.line));
+        pts.push({label:GAMES[gi].date, v:derive(t)[key], n:win.length});
+      });
+      return {name:nm.split(" ").slice(-1)[0], color:MULTI_COLORS[i%5], points:pts};
+    });
+    document.getElementById("p-metric-label").textContent =
+      (playerMetric==="KBB"?"K%":METRICS[playerMetric].l) + " \u00b7 " + names.length + " players";
+    drawChartInto("chart-box", series,
+      {fmt: playerMetric==="KBB"?fmtPct:METRICS[playerMetric].f, multi:true,
+       aria:`${METRICS[playerMetric]?METRICS[playerMetric].l:"K%"} for ${names.length} players, ${modeWord()}`});
+    return;
+  }
   if(playerMetric==="KBB"){
     document.getElementById("p-metric-label").textContent="K% / BB%";
     drawChartInto("chart-box",
-      [{name:"K%",  color:"#c9564a", points:rollingStat(p.log,"KPCT")},
-       {name:"BB%", color:"#2e9fb0", points:rollingStat(p.log,"BBPCT")}],
+      [{name:"K%",  color:"#c9564a", points:lineStat(p.log,"KPCT")},
+       {name:"BB%", color:"#2e9fb0", points:lineStat(p.log,"BBPCT")}],
       {fmt:fmtPct,
        bars:[{name:"K%",  vals:singleStat(p.log,"KPCT"),  fill:"#c9564a", opacity:0.16},
              {name:"BB%", vals:singleStat(p.log,"BBPCT"), fill:"#2e9fb0", opacity:0.16}],
        barTips: p.log.map(e=>battingLine(e)),
-       aria:`Rolling 4-game K% and BB% for ${p.name}`});
+       aria:`K% and BB% for ${p.name}, ${modeWord()}`});
     return;
   }
   const m=METRICS[playerMetric];
   document.getElementById("p-metric-label").textContent=m.l;
   drawChartInto("chart-box",
-    [{name:m.l, color:"#e8641d", points:rollingStat(p.log, playerMetric)}],
+    [{name:m.l, color:"#e8641d", points:lineStat(p.log, playerMetric)}],
     {fmt:m.f, refs:[{v:p.stats[playerMetric]}],
      bars:[{name:m.l, vals:singleStat(p.log, playerMetric), fill:"#ffffff", opacity:0.10}],
      barTips: p.log.map(e=>battingLine(e)),
-     aria:`Rolling 4-game ${m.l} for ${p.name}, single-game values as columns`});
+     aria:`${m.l} for ${p.name}, ${modeWord()}, single-game values as columns`});
 }
+let mpOpen=false;
+function renderMultiUI(){
+  const el=document.getElementById("p-multi"); if(!el) return;
+  const elig=multiEligible();
+  let html=`<label class="gf-row" style="display:inline-block;padding:0"><input type="checkbox" id="mp-chk" ${multiMode?"checked":""}>Select multiple players</label>`;
+  if(multiMode){
+    const label = multiSel.length? `${multiSel.length} selected` : "Choose players";
+    html += `<span class="gf" id="mp-wrap" style="margin-left:8px"><button class="pill mp-btn">${label} \u25be</button>`;
+    if(mpOpen){
+      html += `<div class="gf-panel">`;
+      elig.forEach(n=>{
+        const on=multiSel.includes(n), full=!on && multiSel.length>=5;
+        html += `<label class="gf-row" style="${full?"opacity:.4":""}"><input type="checkbox" data-n="${n}" ${on?"checked":""} ${full?"disabled":""}>${n}</label>`;
+      });
+      html += `</div>`;
+    }
+    html += `</span>`;
+  }
+  el.innerHTML=html;
+  if(!el.querySelectorAll) return;
+  const chk=el.querySelector("#mp-chk");
+  if(chk) chk.addEventListener("change", ()=>{ multiMode=chk.checked;
+    if(multiMode && multiSel.length===0 && selected) multiSel=[selected]; renderPlayerChartUI(); });
+  el.querySelectorAll(".mp-btn").forEach(b=>b.addEventListener("click", ()=>{ mpOpen=!mpOpen; renderPlayerChartUI(); }));
+  el.querySelectorAll("input[data-n]").forEach(cb=>cb.addEventListener("change", ()=>{
+    const n=cb.getAttribute("data-n");
+    if(cb.checked){ if(multiSel.length<5) multiSel.push(n); }
+    else multiSel=multiSel.filter(x=>x!==n);
+    renderPlayerChartUI();
+  }));
+}
+
 function smoothPath(pts){
   if(pts.length<3) return "M"+pts.map(p=>p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" L");
   const sm=0.1;
@@ -541,7 +635,7 @@ function drawChartInto(elId, series, opts){
   const px=v=> mob ? +((v*1.3-1)*720/cw).toFixed(1) : Math.max(1, v-2);
   const W=720, H=245, mL=mob?Math.round(px(8)*3.2+10):56, mR=14, mT=14, mB=mob?Math.round(px(7.5)+16):32;
   const iw=W-mL-mR, ih=H-mT-mB;
-  let vals=[]; series.forEach(s=>s.points.forEach(p=>vals.push(p.v))); refs.forEach(r=>vals.push(r.v)); if(bars) bars.forEach(set=>set.vals.forEach(v=>vals.push(v)));
+  let vals=[]; series.forEach(s=>s.points.forEach(p=>{ if(p.v!==null&&p.v!==undefined) vals.push(p.v); })); refs.forEach(r=>vals.push(r.v)); if(bars) bars.forEach(set=>set.vals.forEach(v=>vals.push(v)));
   let lo=Math.min(...vals), hi=Math.max(...vals);
   const unit=o.tickUnit||0.05;
   if(o.yMin!==undefined) lo=Math.min(lo,o.yMin);
@@ -612,23 +706,30 @@ function drawChartInto(elId, series, opts){
   }
   series.forEach(s=>{
     if(n>1){
-      const pts=s.points.map((p,i)=>[x(i),y(p.v)]);
-      svg+=`<path fill="none" stroke="${s.color}" stroke-width="1.5" d="${smoothPath(pts)}"/>`;
+      const pts=s.points.map((p,i)=>(p.v===null||p.v===undefined)?null:[x(i),y(p.v)]).filter(Boolean);
+      if(pts.length>1) svg+=`<path fill="none" stroke="${s.color}" stroke-width="${mob?1.5:(o.multi?0.5:1)}" d="${smoothPath(pts)}"/>`;
     }
   });
   series.forEach(s=>s.points.forEach((p,i)=>{
+    if(p.v===null||p.v===undefined) return;
     const isHl=hl===i;
-    svg+=`<circle class="dot" data-g="${i}" cx="${x(i)}" cy="${y(p.v)}" r="${isHl?4.5:2.5}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
+    svg+=`<circle class="dot" data-g="${i}" cx="${x(i)}" cy="${y(p.v)}" r="${isHl?(mob?4.5:3.5):(mob?2.5:(o.multi?0.5:1.5))}" fill="${isHl?"#f3a06b":s.color}" stroke="#101314" stroke-width="1.5">
       <title>${p.label}${series.length>1?" "+s.name:""}: ${fmt(p.v)} (${tipN(p.n)})</title></circle>`;
   }));
   if(series.length>1){
-    series.forEach(s=>{
-      const last=s.points[n-1];
-      const fsS=px(8.5);
-      let ly=y(last.v)-(mob?px(6):8);
-      if(ly < mT+fsS) ly = Math.min(y(last.v)+fsS+(mob?px(4):6), mT+ih-2);
-      if(ly > mT+ih-2) ly = mT+ih-2;
-      svg+=`<text x="${x(n-1)}" y="${ly.toFixed(1)}" text-anchor="end" font-size="${fsS}" fill="${s.color}" font-family="Courier New,monospace" font-weight="bold">${s.name}</text>`;
+    const fsS=px(8.5), gapS=fsS*1.25;
+    const lastOf=s=>{ for(let i=s.points.length-1;i>=0;i--){ const v=s.points[i].v; if(v!==null&&v!==undefined) return {i,v}; } return null; };
+    const lab=series.filter(s=>lastOf(s)).map(s=>({name:s.name, color:s.color, xx:x(lastOf(s).i), want:y(lastOf(s).v)-(mob?px(5):6)}));
+    lab.sort((a,b)=>a.want-b.want);
+    let prev=-1e9;
+    lab.forEach(L=>{ L.yy=Math.max(L.want, prev+gapS); prev=L.yy; });
+    const over=lab.length? lab[lab.length-1].yy-(mT+ih-2):0;
+    if(over>0) lab.forEach(L=>L.yy-=over);
+    lab.forEach(L=>{ if(L.yy<mT+fsS) L.yy=mT+fsS; });
+    lab.forEach(L=>{
+      const wTxt=L.name.length*fsS*0.62;
+      svg+=`<rect x="${(L.xx-wTxt-4).toFixed(1)}" y="${(L.yy-fsS).toFixed(1)}" width="${(wTxt+6).toFixed(1)}" height="${(fsS*1.2).toFixed(1)}" fill="#181d1f" fill-opacity="0.85" rx="2"/>`;
+      svg+=`<text x="${L.xx}" y="${L.yy.toFixed(1)}" text-anchor="end" font-size="${fsS}" fill="${L.color}" font-family="Courier New,monospace" font-weight="bold">${L.name}</text>`;
     });
   }
   let lastXLab="";
@@ -746,19 +847,23 @@ function renderTeamLog(){
 let selGame=null;
 let teamMetric="OPS";
 function renderTeamChart(){
-  renderPills("t-pills", ["OPS","OBP","AVG","KBB","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
+  renderPills("t-pills", ["OPS","OBP","SLG","AVG","WOBA","KBB","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
+  const mb=document.getElementById("t-mode");
+  if(mb){ mb.textContent = chartMode==="cum" ? "Season to date" : "Rolling 4";
+          mb.className = "pill" + (chartMode==="cum"?" active":""); }
   const lbl=document.getElementById("t-metric-label");
+  const tips = teamLog.map(e=>{ const t=emptyTot(); addLine(t,e.line); const d=derive(t);
+    return `${e.game.date} ${e.game.ha||"vs"} ${e.game.opp}  ${fmt3(d.AVG)}/${fmt3(d.OBP)}/${fmt3(d.SLG)}  ${fmt3(d.OPS)} OPS`; });
   if(teamMetric==="KBB"){
     lbl.textContent="team K% / BB%";
     drawChartInto("team-chart",
-      [{name:"K%",  color:"#c9564a", points:rollingStat(teamLog,"KPCT")},
-       {name:"BB%", color:"#2e9fb0", points:rollingStat(teamLog,"BBPCT")}],
+      [{name:"K%",  color:"#c9564a", points:lineStat(teamLog,"KPCT")},
+       {name:"BB%", color:"#2e9fb0", points:lineStat(teamLog,"BBPCT")}],
       {fmt:fmtPct,
        bars:[{name:"K%",  vals:singleStat(teamLog,"KPCT"),  fill:"#c9564a", opacity:0.16},
              {name:"BB%", vals:singleStat(teamLog,"BBPCT"), fill:"#2e9fb0", opacity:0.16}],
-       barTips: teamLog.map(e=>{ const t=emptyTot(); addLine(t,e.line); const d=derive(t);
-         return `${e.game.date} ${e.game.ha||"vs"} ${e.game.opp}  ${fmt3(d.AVG)}/${fmt3(d.OBP)}/${fmt3(d.SLG)}  ${fmt3(d.OPS)} OPS`; }),
-       aria:"Rolling 4-game team K% and BB%", onClick:showGameBox, hl:selGame});
+       barTips: tips,
+       aria:`Team K% and BB%, ${modeWord()}`, onClick:showGameBox, hl:selGame});
   } else if(teamMetric==="DIFF"){
     lbl.textContent="cumulative team RS/RA";
     const labs=GAMES.map(g=>g.date);
@@ -771,14 +876,14 @@ function renderTeamChart(){
     const m=METRICS[teamMetric];
     lbl.textContent=`team ${m.l}`;
     drawChartInto("team-chart",
-      [{name:m.l, color:"#e8641d", points:rollingStat(teamLog, teamMetric)}],
+      [{name:m.l, color:"#e8641d", points:lineStat(teamLog, teamMetric)}],
       {fmt:m.f, refs:[{v:team[teamMetric], label:`season ${m.f(team[teamMetric])}`}],
        bars:[{name:m.l, vals:singleStat(teamLog, teamMetric), fill:"#ffffff", opacity:0.10}],
-       barTips: teamLog.map(e=>{ const t=emptyTot(); addLine(t,e.line); const d=derive(t);
-         return `${e.game.date} ${e.game.ha||"vs"} ${e.game.opp}  ${fmt3(d.AVG)}/${fmt3(d.OBP)}/${fmt3(d.SLG)}  ${fmt3(d.OPS)} OPS`; }),
-       aria:`Rolling 4-game team ${m.l}, single-game values as columns`, onClick:showGameBox, hl:selGame});
+       barTips: tips,
+       aria:`Team ${m.l}, ${modeWord()}, single-game values as columns`, onClick:showGameBox, hl:selGame});
   }
 }
+
 function showGameBox(i){
   selGame = (i===null || i===selGame) ? null : i;
   const box=document.getElementById("game-box");
@@ -877,6 +982,14 @@ renderTeamLog();
 renderBoard();
 renderGameFilters();
 renderQualBtn();
+(()=>{ const tm=document.getElementById("t-mode");
+  if(tm && tm.addEventListener) tm.addEventListener("click", ()=>{ chartMode = chartMode==="cum"?"roll":"cum"; renderTeamChart(); if(selected) renderPlayerChartUI(); });
+  const pm=document.getElementById("p-mode");
+  if(pm && pm.addEventListener) pm.addEventListener("click", ()=>{ chartMode = chartMode==="cum"?"roll":"cum"; renderTeamChart(); if(selected) renderPlayerChartUI(); });
+})();
+(()=>{ const ab=document.getElementById("adv-btn");
+  if(ab && ab.addEventListener) ab.addEventListener("click", ()=>{ advMode=!advMode; renderBoard(); });
+})();
 (()=>{ const qb=document.getElementById("qual-btn");
   if(qb && qb.addEventListener) qb.addEventListener("click", ()=>{
     qualMode = qualMode===2 ? 1 : 2;
