@@ -311,6 +311,7 @@ const fmtPct = v => (v*100).toFixed(1);
 // R/PA = 1.6115 * wOBA^2.060. Season residuals +2.9 / -3.6 / -2.1%.
 // League solved from the 9.69 R/G anchor at 8 innings: wOBA .3858 (~.878 OPS).
 const CAL = { k: 1.2095, lgWOBA: 0.3858, lgRPA: 0.2265 };
+let poolTotals = null;
 let selGames = new Set(GAMES.map((_,i)=>i));
 let qualMode = 2;
 const qualPA = () => qualMode*selGames.size;
@@ -337,6 +338,16 @@ function buildPlayers(){
   const at=emptyTot(); addLine(at, allArr); const ad=derive(at);
   const teamOPS = ad.PA>0 ? ad.OPS : lgOPS;
   const teamRPA = ad.PA>0 ? rpaOf(ad) : CAL.lgRPA;
+  ad.WRAA = CAL.k*(ad.WOBA-CAL.lgWOBA)*ad.PA;
+  ad.WRC  = CAL.lgRPA*ad.PA + ad.WRAA;
+  ad.WRCP = ad.PA>0 ? 100*(ad.WRC/ad.PA)/CAL.lgRPA : 0;
+  ad.OPSP = lgOPS>0 ? 100*ad.OPS/lgOPS : 0;
+  ad.RPA   = ad.PA>0 ? ad.R/ad.PA : 0;
+  ad.RBIPA = ad.PA>0 ? ad.RBI/ad.PA : 0;
+  const tobT = ad.H+ad.BB+ad.HBP;
+  ad.RTOB = tobT>0 ? ad.R/tobT : 0;
+  ad.OPSPA = ad.OPSP; ad.WRCPA = ad.WRCP;   // the team is its own schedule baseline
+  poolTotals = ad;
   const list = Object.values(map).map(p => {
     const s=derive(p.tot);
     s.WRAA = CAL.k * (s.WOBA - CAL.lgWOBA) * s.PA;
@@ -484,7 +495,11 @@ function renderBoard(){
         const raw=p.stats[c.k], txt=c.f?c.f(raw):raw;
         return `<td class="${c.k===eff?"hl":""}${!c.f&&raw===0?" z":""}">${txt}</td>`;
       }).join("") + `</tr>`;
-  }).join("") + `</tbody>`;
+  }).join("") + (poolTotals ? `<tr style="border-top:2px solid var(--line)">
+      <td class="name" style="color:var(--dim)">Totals</td>` +
+      CS.map(c=>{ const raw=poolTotals[c.k];
+        const txt=(raw===undefined||raw===null)?"":(c.f?c.f(raw):raw);
+        return `<td style="font-weight:700">${txt}</td>`; }).join("") + `</tr>` : "") + `</tbody>`;
 
   const tbl = document.getElementById("board");
   tbl.innerHTML = head + body;
