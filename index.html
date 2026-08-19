@@ -539,7 +539,8 @@ let multiMode=false, multiSel=[];
 function multiEligible(){ return players.filter(p=>p.stats.PA>=selGames.size).map(p=>p.name).sort(); }
 function renderPlayerChartUI(){
   const p=players.find(x=>x.name===selected); if(!p) return;
-  renderPills("p-pills", ["OPS","OBP","SLG","AVG","WOBA","KBB"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
+  if(!["OPS","OBP","WOBA","KBB"].includes(playerMetric)) playerMetric="OPS";
+  renderPills("p-pills", ["OPS","OBP","WOBA","KBB"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
   segSet("p-mode","m",chartMode);
   renderMultiUI();
   if(multiMode){
@@ -853,7 +854,8 @@ function renderTeamLog(){
 let selGame=null;
 let teamMetric="OPS";
 function renderTeamChart(){
-  renderPills("t-pills", ["OPS","OBP","SLG","AVG","WOBA","KBB","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
+  if(!["OPS","WOBA","KBB","DIFF"].includes(teamMetric)) teamMetric="OPS";
+  renderPills("t-pills", ["OPS","WOBA","KBB","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
   segSet("t-mode","m",chartMode);
   const lbl=document.getElementById("t-metric-label");
   const tips = teamLog.map(e=>{ const t=emptyTot(); addLine(t,e.line); const d=derive(t);
