@@ -71,6 +71,10 @@
   .pills { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 8px; }
   .pill { background:transparent; border:1px solid var(--line); color:var(--dim); padding:2px 11px; font-family:var(--mono); font-size:11.5px; cursor:pointer; letter-spacing:.5px; white-space:nowrap; }
   .pill.active { border-color:var(--orange); color:var(--orange); }
+  .seg { display:inline-flex; border:1px solid var(--line); vertical-align:middle; }
+  .seg button { background:transparent; border:0; padding:2px 10px; font-family:var(--mono); font-size:11.5px; letter-spacing:.5px; color:var(--dim); cursor:pointer; white-space:nowrap; }
+  .seg button.on { color:var(--orange); background:rgba(232,100,29,0.15); }
+  .seg button + button { border-left:1px solid var(--line); }
   .charttip { position:fixed; z-index:60; display:none; pointer-events:none; background:var(--panel2); border:1px solid var(--line); color:var(--ink); font-family:var(--mono); font-size:11px; padding:5px 8px; max-width:min(340px, calc(100vw - 24px)); white-space:normal; line-height:1.45; box-shadow:0 4px 14px rgba(0,0,0,.6); }
   .barhit { cursor:default; }
   .gf { position:relative; display:inline-block; }
@@ -103,11 +107,11 @@
       <div class="sub" id="subline"></div>
     </div>
     <div class="team-grid" id="team-grid"></div>
-    <div class="section-label"><span id="t-metric-label">team OPS</span> <span style="text-transform:none;letter-spacing:0">· tap a game for the box score</span></div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <div class="pills" id="t-pills"></div>
-      <button class="pill" id="t-mode"></button>
+    <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span><span id="t-metric-label">team OPS</span> <span style="text-transform:none;letter-spacing:0">· tap a game for the box score</span></span>
+      <span class="seg" id="t-mode"><button data-m="roll">Rolling 4</button><button data-m="cum">Season</button></span>
     </div>
+    <div class="pills" id="t-pills"></div>
     <div id="team-chart"></div>
     <div id="game-box" style="display:none">
       <div class="drill-head" style="margin-top:14px">
@@ -126,11 +130,11 @@
       </div>
       <button class="close-btn" onclick="selectPlayer(null)">Close ✕</button>
     </div>
-    <div class="section-label"><span id="p-metric-label">OPS</span></div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <div class="pills" id="p-pills"></div>
-      <button class="pill" id="p-mode"></button>
+    <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span id="p-metric-label">OPS</span>
+      <span class="seg" id="p-mode"><button data-m="roll">Rolling 4</button><button data-m="cum">Season</button></span>
     </div>
+    <div class="pills" id="p-pills"></div>
     <div id="p-multi" style="margin-top:7px"></div>
     <div id="chart-box"></div>
     <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap">
@@ -145,7 +149,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;flex-wrap:nowrap">
         <div class="board-title">Batting leaderboard</div>
         <div class="board-ctrls">
-          <button class="pill" id="adv-btn"></button>
+          <span class="seg" id="adv-seg"><button data-a="0">Standard</button><button data-a="1">Advanced</button></span>
           <button class="pill" id="qual-btn"></button>
           <div class="gf" id="gf-board"></div>
         </div>
@@ -425,16 +429,16 @@ const COLS_ADV = [
   {k:"WRC",l:"wRC",f:v=>v.toFixed(1)},{k:"WRAA",l:"wRAA",f:v=>(v>=0?"+":"")+v.toFixed(1)},
   {k:"WRCP",l:"wRC+",r:1,f:v=>String(Math.round(v))},
   {k:"OPSP",l:"OPS+",r:1,f:v=>String(Math.round(v))},
-  {k:"OPSPA",l:"adjOPS+",r:1,f:v=>String(Math.round(v)),tip:TIP_ADJ},
-  {k:"WRCPA",l:"adjwRC+",r:1,f:v=>String(Math.round(v)),tip:TIP_ADJ},
   {k:"KPCT",l:"K%",r:1,f:fmtPct},{k:"BBPCT",l:"BB%",r:1,f:fmtPct},
   {k:"RPA",l:"R/PA",r:1,f:v=>v.toFixed(3)},{k:"RBIPA",l:"RBI/PA",r:1,f:v=>v.toFixed(3)},
   {k:"RTOB",l:"R/TOB",r:1,f:v=>v.toFixed(3)},
+  {k:"OPSPA",l:"adjOPS+",r:1,f:v=>String(Math.round(v)),tip:TIP_ADJ},
+  {k:"WRCPA",l:"adjwRC+",r:1,f:v=>String(Math.round(v)),tip:TIP_ADJ},
 ];
 let advMode=false;
 const COLS = COLS_STD;
 
-let sortKey="OPS", sortDir=-1, selected=null;
+let sortKey="WRCP", sortDir=-1, selected=null;
 
 /* ---------------- Header ---------------- */
 document.getElementById("record").textContent = RECORD;
@@ -454,16 +458,22 @@ document.getElementById("footnote").textContent =
   `Compiled from ${GAMES.length} box scores. Qualified = 2 PA \u00d7 ${GAMES.length} tracked games (${QUAL_PA} PA). Record includes the 7/18 forfeit win vs Mariners (no box score). Batting only. wRC/wRAA use a convex wOBA-to-runs curve fitted to opponent box scores and two team-seasons (R/PA ∝ wOBA^2.04), anchored to a 9.2 R/G league average (≈.379 wOBA / .861 OPS league-average hitter).`;
 
 /* ---------------- Leaderboard ---------------- */
+function segSet(id, attr, val){
+  const el=document.getElementById(id); if(!el || !el.querySelectorAll) return;
+  el.querySelectorAll("button["+"data-"+attr+"]").forEach(b=>{
+    b.className = b.getAttribute("data-"+attr)===String(val) ? "on" : "";
+  });
+}
 function activeCols(){ return advMode ? COLS_ADV : COLS_STD; }
 function renderBoard(){
   const CS = activeCols();
-  if(!CS.some(c=>c.k===sortKey)) sortKey = CS.some(c=>c.k==="OPS") ? "OPS" : CS[0].k;
-  const col = CS.find(c=>c.k===sortKey);
-  let s = [...players].sort((a,b)=>(b.stats[sortKey]-a.stats[sortKey])*(sortDir===-1?1:-1));
+  const eff = CS.some(c=>c.k===sortKey) ? sortKey : (CS.some(c=>c.k==="OPS") ? "OPS" : CS[0].k);
+  const col = CS.find(c=>c.k===eff);
+  let s = [...players].sort((a,b)=>(b.stats[eff]-a.stats[eff])*(sortDir===-1?1:-1));
   if(col.r) s = [...s.filter(p=>p.qualified), ...s.filter(p=>!p.qualified)];
 
   const head = `<thead><tr><th class="name">Player</th>` + CS.map(c=>
-    `<th data-k="${c.k}" class="${c.k===sortKey?"active":""}"${c.tip?` data-tip="${c.tip}"`:""}>${c.l}${c.k===sortKey?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
+    `<th data-k="${c.k}" class="${c.k===eff?"active":""}"${c.tip?` data-tip="${c.tip}"`:""}>${c.l}${c.k===eff?(sortDir===-1?" \u25be":" \u25b4"):""}</th>`
   ).join("") + `</tr></thead>`;
 
   const body = `<tbody>` + s.map(p=>{
@@ -472,7 +482,7 @@ function renderBoard(){
       <td class="name">${p.name}${p.qualified?"":' <span class="dag">\u2020</span>'}</td>` +
       CS.map(c=>{
         const raw=p.stats[c.k], txt=c.f?c.f(raw):raw;
-        return `<td class="${c.k===sortKey?"hl":""}${!c.f&&raw===0?" z":""}">${txt}</td>`;
+        return `<td class="${c.k===eff?"hl":""}${!c.f&&raw===0?" z":""}">${txt}</td>`;
       }).join("") + `</tr>`;
   }).join("") + `</tbody>`;
 
@@ -490,8 +500,7 @@ function renderBoard(){
   });
   tbl.querySelectorAll("tr[data-p]").forEach(tr=>tr.onclick=()=>
     selectPlayer(tr.dataset.p===selected?null:tr.dataset.p));
-  const ab=document.getElementById("adv-btn");
-  if(ab){ ab.textContent = advMode ? "Advanced" : "Standard"; ab.className = "pill" + (advMode?" active":""); }
+  segSet("adv-seg","a",advMode?"1":"0");
 }
 function selectPlayer(name){
   selected=name;
@@ -525,21 +534,19 @@ function renderGameLog(p){
 }
 
 /* Hand-rolled SVG line chart */
-const MULTI_COLORS=["#e8641d","#2e9fb0","#7fb069","#c9564a","#b08cd8"];
+const MULTI_COLORS=["#e8641d","#2e9fb0","#7fb069","#eda100","#b08cd8","#e87ba4"];
 let multiMode=false, multiSel=[];
 function multiEligible(){ return players.filter(p=>p.stats.PA>=selGames.size).map(p=>p.name).sort(); }
 function renderPlayerChartUI(){
   const p=players.find(x=>x.name===selected); if(!p) return;
   renderPills("p-pills", ["OPS","OBP","SLG","AVG","WOBA","KBB"], playerMetric, k=>{playerMetric=k; renderPlayerChartUI();});
-  const mb=document.getElementById("p-mode");
-  if(mb){ mb.textContent = chartMode==="cum" ? "Season to date" : "Rolling 4";
-          mb.className = "pill" + (chartMode==="cum"?" active":""); }
+  segSet("p-mode","m",chartMode);
   renderMultiUI();
   if(multiMode){
     const names = multiSel.length? multiSel : [p.name];
     const key = playerMetric==="KBB" ? "KPCT" : playerMetric;
     const gis = [...selGames].sort((a,b)=>a-b);
-    const series = names.slice(0,5).map((nm,i)=>{
+    const series = names.slice(0,6).map((nm,i)=>{
       const q=players.find(x=>x.name===nm);
       const byG={}; q.log.forEach(e=>byG[e.gi]=e);
       const played=[]; const pts=[];
@@ -550,7 +557,7 @@ function renderPlayerChartUI(){
         const t=emptyTot(); win.forEach(e=>addLine(t,e.line));
         pts.push({label:GAMES[gi].date, v:derive(t)[key], n:win.length});
       });
-      return {name:nm.split(" ").slice(-1)[0], color:MULTI_COLORS[i%5], points:pts};
+      return {name:nm.split(" ").slice(-1)[0], color:MULTI_COLORS[i%6], points:pts};
     });
     document.getElementById("p-metric-label").textContent =
       (playerMetric==="KBB"?"K%":METRICS[playerMetric].l) + " \u00b7 " + names.length + " players";
@@ -591,7 +598,7 @@ function renderMultiUI(){
     if(mpOpen){
       html += `<div class="gf-panel">`;
       elig.forEach(n=>{
-        const on=multiSel.includes(n), full=!on && multiSel.length>=5;
+        const on=multiSel.includes(n), full=!on && multiSel.length>=6;
         html += `<label class="gf-row" style="${full?"opacity:.4":""}"><input type="checkbox" data-n="${n}" ${on?"checked":""} ${full?"disabled":""}>${n}</label>`;
       });
       html += `</div>`;
@@ -606,7 +613,7 @@ function renderMultiUI(){
   el.querySelectorAll(".mp-btn").forEach(b=>b.addEventListener("click", ()=>{ mpOpen=!mpOpen; renderPlayerChartUI(); }));
   el.querySelectorAll("input[data-n]").forEach(cb=>cb.addEventListener("change", ()=>{
     const n=cb.getAttribute("data-n");
-    if(cb.checked){ if(multiSel.length<5) multiSel.push(n); }
+    if(cb.checked){ if(multiSel.length<6) multiSel.push(n); }
     else multiSel=multiSel.filter(x=>x!==n);
     renderPlayerChartUI();
   }));
@@ -847,9 +854,7 @@ let selGame=null;
 let teamMetric="OPS";
 function renderTeamChart(){
   renderPills("t-pills", ["OPS","OBP","SLG","AVG","WOBA","KBB","DIFF"], teamMetric, k=>{teamMetric=k; renderTeamChart();});
-  const mb=document.getElementById("t-mode");
-  if(mb){ mb.textContent = chartMode==="cum" ? "Season to date" : "Rolling 4";
-          mb.className = "pill" + (chartMode==="cum"?" active":""); }
+  segSet("t-mode","m",chartMode);
   const lbl=document.getElementById("t-metric-label");
   const tips = teamLog.map(e=>{ const t=emptyTot(); addLine(t,e.line); const d=derive(t);
     return `${e.game.date} ${e.game.ha||"vs"} ${e.game.opp}  ${fmt3(d.AVG)}/${fmt3(d.OBP)}/${fmt3(d.SLG)}  ${fmt3(d.OPS)} OPS`; });
@@ -981,13 +986,13 @@ renderTeamLog();
 renderBoard();
 renderGameFilters();
 renderQualBtn();
-(()=>{ const tm=document.getElementById("t-mode");
-  if(tm && tm.addEventListener) tm.addEventListener("click", ()=>{ chartMode = chartMode==="cum"?"roll":"cum"; renderTeamChart(); if(selected) renderPlayerChartUI(); });
-  const pm=document.getElementById("p-mode");
-  if(pm && pm.addEventListener) pm.addEventListener("click", ()=>{ chartMode = chartMode==="cum"?"roll":"cum"; renderTeamChart(); if(selected) renderPlayerChartUI(); });
-})();
-(()=>{ const ab=document.getElementById("adv-btn");
-  if(ab && ab.addEventListener) ab.addEventListener("click", ()=>{ advMode=!advMode; renderBoard(); });
+["t-mode","p-mode"].forEach(id=>{ const el=document.getElementById(id);
+  if(el && el.querySelectorAll) el.querySelectorAll("button[data-m]").forEach(b=>
+    b.addEventListener("click", ()=>{ chartMode=b.getAttribute("data-m"); renderTeamChart(); if(selected) renderPlayerChartUI(); }));
+});
+(()=>{ const el=document.getElementById("adv-seg");
+  if(el && el.querySelectorAll) el.querySelectorAll("button[data-a]").forEach(b=>
+    b.addEventListener("click", ()=>{ advMode = b.getAttribute("data-a")==="1"; renderBoard(); }));
 })();
 (()=>{ const qb=document.getElementById("qual-btn");
   if(qb && qb.addEventListener) qb.addEventListener("click", ()=>{
