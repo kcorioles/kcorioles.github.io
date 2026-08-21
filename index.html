@@ -477,6 +477,7 @@ function segSet(id, attr, val){
 }
 function activeCols(){ return advMode ? COLS_ADV : COLS_STD; }
 function renderBoard(){
+  hideTip();
   const CS = activeCols();
   const eff = CS.some(c=>c.k===sortKey) ? sortKey : (CS.some(c=>c.k==="OPS") ? "OPS" : CS[0].k);
   const col = CS.find(c=>c.k===eff);
@@ -651,6 +652,7 @@ function smoothPath(pts){
   return d;
 }
 function drawChartInto(elId, series, opts){
+  hideTip();
   const o=opts||{}, fmt=o.fmt||fmt3, refs=o.refs||[], onClick=o.onClick, hl=o.hl, bars=o.bars||null, tipN=o.tipN||(n=>`last ${n}G`);
   // bars: array of {name, vals, fill, opacity}
   const n=series[0].points.length;
@@ -808,7 +810,14 @@ function lighten(hex, amt){
   const c=[1,3,5].map(i=>parseInt(hex.substr(i,2),16));
   return "#"+c.map(v=>Math.round(v+(255-v)*amt).toString(16).padStart(2,"0")).join("");
 }
-let tipEl=null;
+let tipEl=null, tipTimer=null, touchMode=false;
+if(typeof document!=="undefined" && document.addEventListener){
+  document.addEventListener("touchstart", ()=>{ touchMode=true; hideTip(); }, {passive:true});
+}
+if(typeof window!=="undefined" && window.addEventListener){
+  window.addEventListener("scroll", ()=>hideTip(), {passive:true});
+  window.addEventListener("resize", ()=>hideTip());
+}
 function showTip(e, txt){
   if(!document.body) return;
   if(!tipEl){ tipEl=document.createElement("div"); tipEl.className="charttip"; document.body.appendChild(tipEl); }
@@ -822,8 +831,10 @@ function showTip(e, txt){
   lx=Math.max(6, Math.min(lx, window.innerWidth-w-6));
   ly=Math.max(6, Math.min(ly, window.innerHeight-h-6));
   tipEl.style.left=lx+"px"; tipEl.style.top=ly+"px";
+  if(tipTimer) clearTimeout(tipTimer);
+  if(touchMode) tipTimer=setTimeout(hideTip, 2600);   // taps get an auto-dismiss
 }
-function hideTip(){ if(tipEl) tipEl.style.display="none"; }
+function hideTip(){ if(tipTimer){ clearTimeout(tipTimer); tipTimer=null; } if(tipEl) tipEl.style.display="none"; }
 
 const teamLog = GAMES.map(g=>{
   const sum=new Array(12).fill(0);
